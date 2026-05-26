@@ -208,7 +208,7 @@ function updateActiveNavLink() {
   navLinks.forEach(link => {
     const href = link.getAttribute('href');
     if (currentLocation.includes(href) || 
-        (currentLocation === '/' && href === './index.html')) {
+        (currentLocation === '/' && href === 'index.html')) {
       link.classList.add('active');
     } else {
       link.classList.remove('active');
