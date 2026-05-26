@@ -1,0 +1,10 @@
+# Netlify redirects for clean URLs (remove .html extensions)
+/index.html / 200
+/about.html /about 200
+/courses.html /courses 200
+/apply.html /apply 200
+/faq.html /faq 200
+/contact.html /contact 200
+
+# Catch-all for undefined routes
+/* /404.html 404
