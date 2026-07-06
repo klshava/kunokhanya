@@ -38,6 +38,7 @@ export function StudentForm({
   const [idHint, setIdHint] = useState<string | null>(null);
   const [dob, setDob] = useState(student?.date_of_birth ?? "");
   const [gender, setGender] = useState(student?.gender ?? "");
+  const [intakeMonth, setIntakeMonth] = useState(student?.intake_month ?? "");
 
   function handleIdBlur() {
     if (/^\d{13}$/.test(idNumber)) {
@@ -172,6 +173,29 @@ export function StudentForm({
             defaultValue={student?.enrollment_date ?? new Date().toISOString().slice(0, 10)}
             required
           />
+        </FormField>
+
+        <FormField label="Intake month" htmlFor="intake_month">
+          <Select
+            name="intake_month"
+            value={intakeMonth}
+            onValueChange={(v) => setIntakeMonth(v === "unset" ? "" : v)}
+          >
+            <SelectTrigger id="intake_month">
+              <SelectValue placeholder="Select intake month" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unset">Not set</SelectItem>
+              {[
+                "January", "February", "March", "April", "May", "June",
+                "July", "August", "September", "October", "November", "December",
+              ].map((month) => (
+                <SelectItem key={month} value={month}>
+                  {month}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </FormField>
 
         <FormField label="Status" htmlFor="status" required>

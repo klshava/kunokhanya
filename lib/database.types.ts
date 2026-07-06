@@ -55,6 +55,7 @@ export interface Database {
           registration_fee_paid: boolean;
           total_fee_override: number | null;
           registration_fee_override: number | null;
+          intake_month: string | null;
           created_at: string;
           updated_at: string;
         };

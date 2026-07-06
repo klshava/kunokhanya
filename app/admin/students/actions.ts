@@ -15,6 +15,11 @@ function formValue(formData: FormData, key: string) {
   return typeof v === "string" && v.length > 0 ? v : undefined;
 }
 
+function intakeMonthValue(formData: FormData) {
+  const v = formValue(formData, "intake_month");
+  return v === "unset" ? undefined : v;
+}
+
 export async function createStudentAction(
   _prevState: FormActionState,
   formData: FormData
@@ -32,6 +37,7 @@ export async function createStudentAction(
     course_id: formValue(formData, "course_id"),
     study_mode: formValue(formData, "study_mode"),
     enrollment_date: formValue(formData, "enrollment_date"),
+    intake_month: intakeMonthValue(formData),
     status: formValue(formData, "status") ?? "active",
     source: formValue(formData, "source") ?? "walk-in",
     registration_fee_paid: formData.get("registration_fee_paid") === "on",
@@ -92,6 +98,7 @@ export async function updateStudentAction(
     course_id: formValue(formData, "course_id"),
     study_mode: formValue(formData, "study_mode"),
     enrollment_date: formValue(formData, "enrollment_date"),
+    intake_month: intakeMonthValue(formData),
     status: formValue(formData, "status") ?? "active",
     source: formValue(formData, "source") ?? "walk-in",
     registration_fee_paid: formData.get("registration_fee_paid") === "on",
