@@ -17,6 +17,26 @@ const INTAKE_MONTHS = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+const PAGE_SIZE = 1000;
+
+// Supabase's PostgREST enforces a hard server-side max-rows cap (currently
+// 1,000) regardless of what range the client requests, so any table that can
+// exceed that needs real pagination rather than a single `.range()` call.
+async function fetchAllPages<T>(
+  queryFn: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  const rows: T[] = [];
+  let offset = 0;
+  while (true) {
+    const { data } = await queryFn(offset, offset + PAGE_SIZE - 1);
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+  return rows;
+}
+
 type StudentRow = {
   student_id: string;
   course_id: string | null;
@@ -110,8 +130,6 @@ function buildOutstandingByCourse(balances: BalanceRow[], courseNameById: Map<st
   return Array.from(byCourse.values()).sort((a, b) => b.totalOutstanding - a.totalOutstanding);
 }
 
-const DUMMY_ID = "00000000-0000-0000-0000-000000000000";
-
 export default async function ReportsPage({
   searchParams,
 }: {
@@ -131,44 +149,60 @@ export default async function ReportsPage({
     .order("course_name");
   const courseNameById = new Map((courses ?? []).map((c) => [c.course_id, c.course_name]));
 
-  let studentsQuery = supabase
-    .from("students")
-    .select("student_id, course_id, status, enrollment_date");
-  if (courseId) studentsQuery = studentsQuery.eq("course_id", courseId);
-  if (intake) studentsQuery = studentsQuery.eq("intake_month", intake);
-  if (status) studentsQuery = studentsQuery.eq("status", status as StudentStatus);
-  if (year) {
-    studentsQuery = studentsQuery.gte("enrollment_date", `${year}-01-01`).lte("enrollment_date", `${year}-12-31`);
+  // Data volume is modest (~1,400 students, ~12,000 payments) so we fetch each
+  // table in full and filter/join in plain TS below, rather than pushing large
+  // `.in(id, [...])` lists into the URL (which silently fails past a few
+  // hundred ids — the request URL exceeds the server's length limit).
+  function buildStudentsQuery(from: number, to: number) {
+    let q = supabase
+      .from("students")
+      .select("student_id, course_id, status, enrollment_date")
+      .order("student_id")
+      .range(from, to);
+    if (courseId) q = q.eq("course_id", courseId);
+    if (intake) q = q.eq("intake_month", intake);
+    if (status) q = q.eq("status", status as StudentStatus);
+    if (year) q = q.gte("enrollment_date", `${year}-01-01`).lte("enrollment_date", `${year}-12-31`);
+    return q;
   }
 
-  let yearCompareQuery = supabase
-    .from("students")
-    .select("student_id, course_id, status, enrollment_date");
-  if (courseId) yearCompareQuery = yearCompareQuery.eq("course_id", courseId);
-  if (intake) yearCompareQuery = yearCompareQuery.eq("intake_month", intake);
-  if (status) yearCompareQuery = yearCompareQuery.eq("status", status as StudentStatus);
+  function buildYearCompareQuery(from: number, to: number) {
+    let q = supabase
+      .from("students")
+      .select("student_id, course_id, status, enrollment_date")
+      .order("student_id")
+      .range(from, to);
+    if (courseId) q = q.eq("course_id", courseId);
+    if (intake) q = q.eq("intake_month", intake);
+    if (status) q = q.eq("status", status as StudentStatus);
+    return q;
+  }
 
-  const [{ data: students }, { data: yearCompareStudents }] = await Promise.all([
-    studentsQuery,
-    yearCompareQuery,
+  const [students, yearCompareStudents, allBalances, allPayments] = await Promise.all([
+    fetchAllPages(buildStudentsQuery),
+    fetchAllPages(buildYearCompareQuery),
+    fetchAllPages((from, to) =>
+      supabase.from("student_balances").select("*").order("student_id").range(from, to)
+    ),
+    fetchAllPages((from, to) =>
+      supabase.from("payments").select("student_id, amount, notes").order("student_id").range(from, to)
+    ),
   ]);
 
-  const filteredIds = (students ?? []).map((s) => s.student_id);
-  const yearCompareIds = (yearCompareStudents ?? []).map((s) => s.student_id);
+  const filteredIds = new Set(students.map((s) => s.student_id));
+  const yearCompareIds = new Set(yearCompareStudents.map((s) => s.student_id));
 
-  const [{ data: balances }, { data: payments }, { data: yearCompareBalances }] = await Promise.all([
-    supabase.from("student_balances").select("*").in("student_id", filteredIds.length ? filteredIds : [DUMMY_ID]),
-    supabase.from("payments").select("student_id, amount, notes").in("student_id", filteredIds.length ? filteredIds : [DUMMY_ID]),
-    supabase.from("student_balances").select("*").in("student_id", yearCompareIds.length ? yearCompareIds : [DUMMY_ID]),
-  ]);
+  const balances = allBalances.filter((b) => filteredIds.has(b.student_id));
+  const payments = allPayments.filter((p) => filteredIds.has(p.student_id));
+  const yearCompareBalances = allBalances.filter((b) => yearCompareIds.has(b.student_id));
 
   const availableYears = Array.from(
-    new Set((yearCompareStudents ?? []).map((s) => s.enrollment_date.slice(0, 4)))
+    new Set(yearCompareStudents.map((s) => s.enrollment_date.slice(0, 4)))
   ).sort((a, b) => b.localeCompare(a));
 
-  const studentRows = (students ?? []) as StudentRow[];
-  const balanceRows = (balances ?? []) as BalanceRow[];
-  const paymentRows = (payments ?? []) as PaymentRow[];
+  const studentRows = students as StudentRow[];
+  const balanceRows = balances as BalanceRow[];
+  const paymentRows = payments as PaymentRow[];
 
   const totalEnrollments = studentRows.length;
   const activeCount = studentRows.filter((s) => s.status === "active").length;
@@ -188,7 +222,7 @@ export default async function ReportsPage({
   const courseIdByStudent = new Map(studentRows.map((s) => [s.student_id, s.course_id]));
   const outstandingByCourse = buildOutstandingByCourse(balanceRows, courseNameById, courseIdByStudent);
 
-  const yearRows = buildYearComparison((yearCompareStudents ?? []) as StudentRow[], (yearCompareBalances ?? []) as BalanceRow[]);
+  const yearRows = buildYearComparison(yearCompareStudents as StudentRow[], yearCompareBalances as BalanceRow[]);
   const yearChartData = yearRows
     .slice()
     .sort((a, b) => a.year.localeCompare(b.year))
