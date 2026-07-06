@@ -17,8 +17,15 @@ export default function LoginForm() {
       <CardContent className="p-6">
         <form action={formAction} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" autoComplete="email" required placeholder="you@example.com" />
+            <Label htmlFor="email">Email or Student Number</Label>
+            <Input
+              id="email"
+              name="email"
+              type="text"
+              autoComplete="username"
+              required
+              placeholder="you@example.com or KTA170007"
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="password">Password</Label>

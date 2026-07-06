@@ -39,7 +39,7 @@ export interface Database {
           student_id: string;
           student_number: string | null;
           full_name: string;
-          id_number: string;
+          id_number: string | null;
           date_of_birth: string | null;
           gender: Gender | null;
           contact_number: string | null;
@@ -53,12 +53,13 @@ export interface Database {
           status: StudentStatus;
           source: StudentSource;
           registration_fee_paid: boolean;
+          total_fee_override: number | null;
+          registration_fee_override: number | null;
           created_at: string;
           updated_at: string;
         };
         Insert: Partial<Database["public"]["Tables"]["students"]["Row"]> & {
           full_name: string;
-          id_number: string;
         };
         Update: Partial<Database["public"]["Tables"]["students"]["Row"]>;
         Relationships: [

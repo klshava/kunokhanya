@@ -8,6 +8,18 @@ export interface AuthActionState {
   error?: string;
 }
 
+// Students log in with their student number (e.g. "KTA170007") rather than an
+// email address. Supabase Auth still requires an email-shaped identifier, so
+// student accounts are created as "<student number>@STUDENT_LOGIN_DOMAIN" and
+// we translate a bare (no "@") login input into that address here. Anything
+// already containing "@" (staff/admin accounts) is passed through unchanged.
+const STUDENT_LOGIN_DOMAIN = "kunokhanya.co.za";
+
+function resolveLoginEmail(identifier: string) {
+  const trimmed = identifier.trim();
+  return trimmed.includes("@") ? trimmed : `${trimmed.toLowerCase()}@${STUDENT_LOGIN_DOMAIN}`;
+}
+
 export async function signInAction(
   _prevState: AuthActionState,
   formData: FormData
@@ -23,7 +35,7 @@ export async function signInAction(
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
+    email: resolveLoginEmail(parsed.data.email),
     password: parsed.data.password,
   });
 

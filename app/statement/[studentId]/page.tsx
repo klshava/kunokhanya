@@ -45,7 +45,8 @@ export default async function FeeStatementPrintPage({
     .order("payment_date", { ascending: true });
 
   const course = student.courses as any;
-  const totalFee = Number(course?.total_fee ?? 0);
+  const registrationFee = Number(student.registration_fee_override ?? course?.registration_fee ?? 0);
+  const totalFee = Number(student.total_fee_override ?? course?.total_fee ?? 0);
   const totalPaid = (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
   const balance = totalFee - totalPaid;
 
@@ -85,7 +86,7 @@ export default async function FeeStatementPrintPage({
       <div className="mb-8 grid grid-cols-2 gap-4 rounded-2xl border border-border-soft p-5 text-sm sm:grid-cols-4">
         <div>
           <p className="text-ink-faint">Registration fee</p>
-          <p className="font-semibold">{formatZAR(course?.registration_fee)}</p>
+          <p className="font-semibold">{formatZAR(registrationFee)}</p>
         </div>
         <div>
           <p className="text-ink-faint">Monthly fee</p>

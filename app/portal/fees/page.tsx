@@ -44,7 +44,8 @@ export default async function PortalFeesPage() {
     .order("payment_date", { ascending: false });
 
   const course = student?.courses as any;
-  const totalFee = Number(course?.total_fee ?? 0);
+  const registrationFee = Number(student?.registration_fee_override ?? course?.registration_fee ?? 0);
+  const totalFee = Number(student?.total_fee_override ?? course?.total_fee ?? 0);
   const totalPaid = (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
   const balance = totalFee - totalPaid;
 
@@ -64,7 +65,7 @@ export default async function PortalFeesPage() {
       />
 
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatTile label="Registration fee" value={formatZAR(course?.registration_fee)} />
+        <StatTile label="Registration fee" value={formatZAR(registrationFee)} />
         <StatTile label="Monthly fee" value={formatZAR(course?.monthly_fee)} />
         <StatTile label="Total fee" value={formatZAR(totalFee)} />
         <StatTile label="Balance outstanding" value={formatZAR(balance)} tone={balance > 0 ? "danger" : "success"} />

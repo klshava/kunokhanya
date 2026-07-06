@@ -92,7 +92,7 @@ export const staffFormSchema = z.object({
 export type StaffFormValues = z.infer<typeof staffFormSchema>;
 
 export const loginFormSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
+  email: z.string().min(1, "Enter your email or student number"),
   password: z.string().min(1, "Password is required"),
 });
 

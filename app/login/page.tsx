@@ -34,7 +34,7 @@ export default async function LoginPage() {
         </div>
         <LoginForm />
         <p className="mt-6 text-center text-xs text-ink-faint">
-          Students: use the email and password given to you by the academy office.
+          Students: use your student number and password given to you by the academy office.
         </p>
       </div>
     </div>
