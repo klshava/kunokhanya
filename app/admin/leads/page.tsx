@@ -2,8 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { formatDate } from "@/lib/currency";
+import { whatsAppLink } from "@/lib/phone";
 import { ConvertLeadDialog } from "./convert-lead-dialog";
 import { LeadStatusSelect } from "./lead-status-select";
+import { MessageCircle } from "lucide-react";
 
 export default async function LeadsPage() {
   const supabase = await createClient();
@@ -52,7 +54,18 @@ export default async function LeadsPage() {
                   <td className="px-5 py-3 font-medium text-ink">{lead.full_name}</td>
                   <td className="px-5 py-3 text-ink-soft">
                     <div>{lead.email ?? "-"}</div>
-                    <div className="text-xs text-ink-faint">{lead.contact_number ?? ""}</div>
+                    {lead.contact_number && (
+                      <a
+                        href={whatsAppLink(lead.contact_number)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-ink-faint hover:text-brand-600"
+                        title="Message on WhatsApp"
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                        {lead.contact_number}
+                      </a>
+                    )}
                   </td>
                   <td className="px-5 py-3 text-ink-soft">{lead.course_interested ?? "-"}</td>
                   <td className="px-5 py-3 text-ink-soft">{formatDate(lead.submitted_at)}</td>
