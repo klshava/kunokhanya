@@ -4,7 +4,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { UserPlus } from "lucide-react";
+import { whatsAppLink } from "@/lib/phone";
+import { UserPlus, MessageCircle } from "lucide-react";
 
 export default async function StaffListPage() {
   const supabase = await createClient();
@@ -56,7 +57,22 @@ export default async function StaffListPage() {
                     </Link>
                   </td>
                   <td className="px-5 py-3 text-ink-soft">{s.position ?? "-"}</td>
-                  <td className="px-5 py-3 text-ink-soft">{s.phone_number ?? s.email ?? "-"}</td>
+                  <td className="px-5 py-3 text-ink-soft">
+                    {s.phone_number ? (
+                      <a
+                        href={whatsAppLink(s.phone_number)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 hover:text-brand-600"
+                        title="Message on WhatsApp"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        {s.phone_number}
+                      </a>
+                    ) : (
+                      (s.email ?? "-")
+                    )}
+                  </td>
                   <td className="px-5 py-3">
                     <Badge variant={s.is_active ? "success" : "neutral"}>
                       {s.is_active ? "Employed" : "Former"}

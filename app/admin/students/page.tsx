@@ -5,7 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus } from "lucide-react";
+import { Search, UserPlus, MessageCircle } from "lucide-react";
+import { whatsAppLink } from "@/lib/phone";
 import type { StudyMode, StudentStatus } from "@/lib/database.types";
 
 const statusVariant = {
@@ -164,7 +165,22 @@ export default async function StudentLookupPage({
                       {s.status}
                     </Badge>
                   </td>
-                  <td className="px-5 py-3 text-ink-soft">{s.contact_number ?? "-"}</td>
+                  <td className="px-5 py-3 text-ink-soft">
+                    {s.contact_number ? (
+                      <a
+                        href={whatsAppLink(s.contact_number)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 hover:text-brand-600"
+                        title="Message on WhatsApp"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        {s.contact_number}
+                      </a>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
