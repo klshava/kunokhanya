@@ -32,18 +32,28 @@ type StudentRow = {
   contact_number: string | null;
   study_mode: string;
   status: string;
-  courses?: { course_name: string } | null;
+  courses?: { course_name: string; duration_months: number | null } | null;
   course_name?: string | null;
+  payments_made?: number;
 };
+
+/** "5/13" progress -- 12-month course + 1 registration-fee payment = 13 total. */
+function paymentsFraction(s: StudentRow): string {
+  const durationMonths = s.courses?.duration_months;
+  if (durationMonths == null) return "-";
+  return `${s.payments_made ?? 0}/${durationMonths + 1}`;
+}
 
 export function StudentsTable({
   students,
   error,
   canBulkAct,
+  canSeeFinance,
 }: {
   students: StudentRow[];
   error: string | null;
   canBulkAct: boolean;
+  canSeeFinance: boolean;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [completeOpen, setCompleteOpen] = useState(false);
@@ -143,7 +153,7 @@ export function StudentsTable({
                 <th className="px-5 py-3 font-medium">Student</th>
                 <th className="px-5 py-3 font-medium">Student no.</th>
                 <th className="px-5 py-3 font-medium">Course</th>
-                <th className="px-5 py-3 font-medium">Mode</th>
+                <th className="px-5 py-3 font-medium">{canSeeFinance ? "Payments" : "Mode"}</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 font-medium">Contact</th>
               </tr>
@@ -196,7 +206,9 @@ export function StudentsTable({
                   </td>
                   <td className="px-5 py-3 text-ink-soft">{s.student_number ?? "-"}</td>
                   <td className="px-5 py-3 text-ink-soft">{s.courses?.course_name ?? s.course_name ?? "-"}</td>
-                  <td className="px-5 py-3 text-ink-soft capitalize">{s.study_mode}</td>
+                  <td className="px-5 py-3 text-ink-soft">
+                    {canSeeFinance ? paymentsFraction(s) : <span className="capitalize">{s.study_mode}</span>}
+                  </td>
                   <td className="px-5 py-3">
                     <Badge variant={statusVariant[s.status as keyof typeof statusVariant] ?? "neutral"} className="capitalize">
                       {s.status}

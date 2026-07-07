@@ -16,6 +16,11 @@ const STAT_CARDS: { key: "" | StudentStatus; label: string; icon: typeof Users }
   { key: "withdrawn", label: "Withdrawn", icon: UserX },
 ];
 
+const INTAKE_MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
 export default async function StudentLookupPage({
   searchParams,
 }: {
@@ -26,6 +31,7 @@ export default async function StudentLookupPage({
   const courseId = typeof params.course === "string" ? params.course : "";
   const studyMode = typeof params.study_mode === "string" ? params.study_mode : "";
   const status = typeof params.status === "string" ? params.status : "";
+  const intake = typeof params.intake === "string" ? params.intake : "";
 
   const role = await getCurrentRole();
   const isFacilitator = role === "facilitator";
@@ -50,6 +56,7 @@ export default async function StudentLookupPage({
     }
     if (courseId) statusQuery = statusQuery.eq("course_id", courseId);
     if (studyMode) statusQuery = statusQuery.eq("study_mode", studyMode as StudyMode);
+    if (intake) statusQuery = statusQuery.eq("intake_month", intake);
 
     let offset = 0;
     while (true) {
@@ -71,6 +78,7 @@ export default async function StudentLookupPage({
     if (q) p.set("q", q);
     if (courseId) p.set("course", courseId);
     if (studyMode) p.set("study_mode", studyMode);
+    if (intake) p.set("intake", intake);
     if (targetStatus && targetStatus !== status) p.set("status", targetStatus);
     const qs = p.toString();
     return qs ? `/admin/students?${qs}` : "/admin/students";
@@ -84,7 +92,9 @@ export default async function StudentLookupPage({
         .limit(100)
     : supabase
         .from("students")
-        .select("student_id, student_number, full_name, id_number, contact_number, study_mode, status, courses(course_name)")
+        .select(
+          "student_id, student_number, full_name, id_number, contact_number, study_mode, status, courses(course_name, duration_months)"
+        )
         .order("student_number", { ascending: false, nullsFirst: false })
         .limit(100);
 
@@ -96,8 +106,26 @@ export default async function StudentLookupPage({
   if (courseId) query = query.eq("course_id", courseId);
   if (studyMode) query = query.eq("study_mode", studyMode as StudyMode);
   if (status) query = query.eq("status", status as StudentStatus);
+  if (intake) query = query.eq("intake_month", intake);
 
   const { data: students, error } = await query;
+
+  // Payments-made count per student, for the "5/13" progress fraction shown
+  // instead of the Mode column (course name already implies full/part time).
+  // Facilitators never see this -- it's derived from the payments table,
+  // which their RLS access excludes entirely.
+  const paymentCounts = new Map<string, number>();
+  if (canBulkAct && students && students.length > 0) {
+    const ids = students.map((s: any) => s.student_id);
+    const { data: paymentRows } = await supabase.from("payments").select("student_id").in("student_id", ids);
+    for (const p of paymentRows ?? []) {
+      paymentCounts.set(p.student_id, (paymentCounts.get(p.student_id) ?? 0) + 1);
+    }
+  }
+  const studentsWithPayments = (students ?? []).map((s: any) => ({
+    ...s,
+    payments_made: paymentCounts.get(s.student_id) ?? 0,
+  }));
 
   return (
     <div>
@@ -140,7 +168,7 @@ export default async function StudentLookupPage({
       <Card className="mb-6 p-4 sm:p-5">
         <form
           method="get"
-          key={`${q}-${courseId}-${studyMode}-${status}`}
+          key={`${q}-${courseId}-${studyMode}-${status}-${intake}`}
           className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap"
         >
           <div className="relative flex-1 min-w-[220px]">
@@ -187,13 +215,31 @@ export default async function StudentLookupPage({
             <option value="withdrawn">Withdrawn</option>
           </select>
 
+          <select
+            name="intake"
+            defaultValue={intake}
+            className="h-10 rounded-xl border border-border bg-surface px-3 text-sm text-ink"
+          >
+            <option value="">Any intake month</option>
+            {INTAKE_MONTHS.map((month) => (
+              <option key={month} value={month}>
+                {month}
+              </option>
+            ))}
+          </select>
+
           <Button type="submit" variant="outline">
             Apply filters
           </Button>
         </form>
       </Card>
 
-      <StudentsTable students={(students ?? []) as any} error={error?.message ?? null} canBulkAct={canBulkAct} />
+      <StudentsTable
+        students={studentsWithPayments as any}
+        error={error?.message ?? null}
+        canBulkAct={canBulkAct}
+        canSeeFinance={canBulkAct}
+      />
     </div>
   );
 }
