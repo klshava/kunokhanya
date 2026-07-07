@@ -37,16 +37,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Some form plugins (e.g. Forminator) ping this URL with an empty body to
+  // verify it's reachable before letting you save the integration. Treat an
+  // unparsable or incomplete body as a harmless connectivity check rather
+  // than an error, as long as the secret above already checked out.
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = {};
   }
 
   const parsed = leadPayloadSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid payload" }, { status: 400 });
+    return NextResponse.json({ success: true, skipped: "No usable lead data in this request" }, { status: 200 });
   }
 
   const admin = createAdminClient();
