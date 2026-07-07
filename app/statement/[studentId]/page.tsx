@@ -161,6 +161,13 @@ export default async function FeeStatementPrintPage({
         office.
       </p>
 
+      <div className="mx-auto mt-6 max-w-sm rounded-xl border border-brand-600/40 px-5 py-3 text-center text-sm">
+        <p className="font-semibold underline">BANKING DETAILS</p>
+        <p>Account Holder: Kunokhanya Trading and Projects</p>
+        <p>FNB Account Number: 62553253784</p>
+        <p>Reference: Your Name and Surname</p>
+      </div>
+
       <p className="mt-6 text-center text-sm font-bold tracking-wide">QUALITY IN STYLE!</p>
     </div>
   );
