@@ -5,11 +5,16 @@ import { z } from "zod";
 /**
  * Webhook endpoint for WordPress to POST new form submissions into.
  *
- * Configure your WordPress form plugin (e.g. WPForms, Gravity Forms, Contact
- * Form 7 + a webhook add-on, or a small custom snippet) to send a POST
- * request here with a JSON body, including the shared secret below.
+ * Configure your WordPress form plugin (e.g. Forminator, WPForms, Gravity
+ * Forms, or Contact Form 7 + a webhook add-on) to send a POST request here
+ * with a JSON body, authenticated with the shared secret below.
  *
- * Required header:  x-webhook-secret: <LEADS_WEBHOOK_SECRET from your .env>
+ * The secret can be sent either way -- use whichever your form plugin
+ * supports (some webhook UIs only let you configure a plain URL, with no
+ * custom headers):
+ *   Header:      x-webhook-secret: <LEADS_WEBHOOK_SECRET from your .env>
+ *   Query param: ?secret=<LEADS_WEBHOOK_SECRET from your .env>
+ *
  * Body (JSON):
  *   {
  *     "full_name": "Jane Doe",
@@ -26,7 +31,7 @@ const leadPayloadSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const secret = request.headers.get("x-webhook-secret");
+  const secret = request.headers.get("x-webhook-secret") || request.nextUrl.searchParams.get("secret");
 
   if (!secret || secret !== process.env.LEADS_WEBHOOK_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
