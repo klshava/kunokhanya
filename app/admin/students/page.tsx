@@ -5,16 +5,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, MessageCircle, Users, UserCheck, GraduationCap, UserX } from "lucide-react";
-import { whatsAppLink } from "@/lib/phone";
+import { Search, UserPlus, Users, UserCheck, GraduationCap, UserX } from "lucide-react";
+import { StudentsTable } from "./students-table";
 import type { StudyMode, StudentStatus } from "@/lib/database.types";
-
-const statusVariant = {
-  active: "success",
-  completed: "brand",
-  withdrawn: "neutral",
-} as const;
 
 const STAT_CARDS: { key: "" | StudentStatus; label: string; icon: typeof Users }[] = [
   { key: "", label: "Total students", icon: Users },
@@ -36,6 +29,7 @@ export default async function StudentLookupPage({
 
   const role = await getCurrentRole();
   const isFacilitator = role === "facilitator";
+  const canBulkAct = role === "admin" || role === "registrar";
 
   const supabase = await createClient();
   const { data: courses } = await supabase.from("courses").select("course_id, course_name").order("course_name");
@@ -199,86 +193,7 @@ export default async function StudentLookupPage({
         </form>
       </Card>
 
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-border-soft text-xs uppercase tracking-wide text-ink-faint">
-                <th className="px-5 py-3 font-medium">Student</th>
-                <th className="px-5 py-3 font-medium">Student no.</th>
-                <th className="px-5 py-3 font-medium">Course</th>
-                <th className="px-5 py-3 font-medium">Mode</th>
-                <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Contact</th>
-              </tr>
-            </thead>
-            <tbody>
-              {error && (
-                <tr>
-                  <td colSpan={6} className="px-5 py-6 text-danger">
-                    Could not load students: {error.message}
-                  </td>
-                </tr>
-              )}
-              {!error && students?.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-ink-soft">
-                    No students match your search.{" "}
-                    {isFacilitator ? (
-                      "Try adjusting the filters."
-                    ) : (
-                      <>
-                        Try adjusting the filters, or{" "}
-                        <Link href="/admin/students/new" className="text-brand-600 underline">
-                          register a new student
-                        </Link>
-                        .
-                      </>
-                    )}
-                  </td>
-                </tr>
-              )}
-              {students?.map((s: any) => (
-                <tr
-                  key={s.student_id}
-                  className="border-b border-border-soft last:border-0 hover:bg-background/60"
-                >
-                  <td className="px-5 py-3">
-                    <Link href={`/admin/students/${s.student_id}`} className="font-medium text-ink hover:text-brand-600">
-                      {s.full_name}
-                    </Link>
-                    <p className="text-xs text-ink-faint">{s.id_number}</p>
-                  </td>
-                  <td className="px-5 py-3 text-ink-soft">{s.student_number ?? "-"}</td>
-                  <td className="px-5 py-3 text-ink-soft">{s.courses?.course_name ?? s.course_name ?? "-"}</td>
-                  <td className="px-5 py-3 text-ink-soft capitalize">{s.study_mode}</td>
-                  <td className="px-5 py-3">
-                    <Badge variant={statusVariant[s.status as keyof typeof statusVariant] ?? "neutral"} className="capitalize">
-                      {s.status}
-                    </Badge>
-                  </td>
-                  <td className="px-5 py-3 text-ink-soft">
-                    {s.contact_number ? (
-                      <a
-                        href={whatsAppLink(s.contact_number)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 hover:text-brand-600"
-                        title="Message on WhatsApp"
-                      >
-                        <MessageCircle className="h-3.5 w-3.5" />
-                        {s.contact_number}
-                      </a>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <StudentsTable students={(students ?? []) as any} error={error?.message ?? null} canBulkAct={canBulkAct} />
     </div>
   );
 }

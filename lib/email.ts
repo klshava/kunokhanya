@@ -1,5 +1,6 @@
 import "server-only";
 import { Resend } from "resend";
+import { formatZAR } from "@/lib/currency";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -102,6 +103,55 @@ export async function sendStaffCredentialsEmail({
         </p>
         <p style="color: #6E6E73; font-size: 13px; margin-top: 24px;">
           If you have any trouble logging in, contact the academy office.
+        </p>
+      </div>
+    `,
+  });
+}
+
+export async function sendFeeReminderEmail({
+  to,
+  fullName,
+  balance,
+  loginUrl,
+}: {
+  to: string;
+  fullName: string;
+  balance: number;
+  loginUrl: string;
+}) {
+  return resend.emails.send({
+    from: FROM,
+    to,
+    subject: "Reminder: outstanding fees at Kunokhanya Training Academy",
+    html: `
+      <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+        <h2 style="color: #0F766E;">Kunokhanya Training Academy</h2>
+        <p>Hi ${fullName},</p>
+        <p>This is a friendly reminder that you currently have an outstanding balance of:</p>
+        <p style="font-size: 22px; font-weight: 700; color: #0F766E; margin: 16px 0;">${formatZAR(balance)}</p>
+        <p>You can settle this by EFT using the details below:</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+          <tr>
+            <td style="padding: 6px 0; color: #6E6E73;">Account Holder</td>
+            <td style="padding: 6px 0; font-weight: 600;">Kunokhanya Trading and Projects</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6E6E73;">FNB Account Number</td>
+            <td style="padding: 6px 0; font-weight: 600;">62553253784</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6E6E73;">Reference</td>
+            <td style="padding: 6px 0; font-weight: 600;">Your Name and Surname</td>
+          </tr>
+        </table>
+        <p>
+          <a href="${loginUrl}" style="display: inline-block; background: #0F766E; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 10px; font-weight: 600;">
+            View your fee statement
+          </a>
+        </p>
+        <p style="color: #6E6E73; font-size: 13px; margin-top: 24px;">
+          If you have already paid or believe this is a mistake, contact the academy office.
         </p>
       </div>
     `,
