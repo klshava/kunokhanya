@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { DetailTabs } from "./detail-tabs";
+import { NewLoginBanner } from "./new-login-banner";
+import { studentLoginEmail, deriveStudentPassword } from "@/lib/students";
 
 export default async function StudentDetailPage({
   params,
@@ -13,6 +15,7 @@ export default async function StudentDetailPage({
   const { studentId } = await params;
   const sp = await searchParams;
   const justCreated = sp.created === "1";
+  const emailed = sp.emailed === "1";
 
   const supabase = await createClient();
 
@@ -48,10 +51,15 @@ export default async function StudentDetailPage({
     <div className="mx-auto max-w-4xl">
       <PageHeader title={student.full_name} description={student.student_number ?? undefined} backHref="/admin/students" backLabel="Student lookup" />
 
-      {justCreated && (
-        <div className="mb-6 rounded-xl bg-success-soft px-4 py-3 text-sm text-success">
-          Student registered successfully.
-        </div>
+      {justCreated && student.student_number && (
+        <NewLoginBanner
+          fullName={student.full_name}
+          loginEmail={studentLoginEmail(student.student_number)}
+          password={deriveStudentPassword(student.full_name)}
+          contactNumber={student.contact_number}
+          emailAddress={student.email}
+          emailed={emailed}
+        />
       )}
 
       <DetailTabs

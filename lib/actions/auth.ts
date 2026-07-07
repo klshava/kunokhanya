@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loginFormSchema } from "@/lib/validations";
+import { STUDENT_LOGIN_DOMAIN } from "@/lib/students";
 
 export interface AuthActionState {
   error?: string;
@@ -13,8 +14,6 @@ export interface AuthActionState {
 // student accounts are created as "<student number>@STUDENT_LOGIN_DOMAIN" and
 // we translate a bare (no "@") login input into that address here. Anything
 // already containing "@" (staff/admin accounts) is passed through unchanged.
-const STUDENT_LOGIN_DOMAIN = "kunokhanya.co.za";
-
 function resolveLoginEmail(identifier: string) {
   const trimmed = identifier.trim();
   return trimmed.includes("@") ? trimmed : `${trimmed.toLowerCase()}@${STUDENT_LOGIN_DOMAIN}`;

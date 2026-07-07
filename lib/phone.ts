@@ -9,7 +9,12 @@ export function toSouthAfricanDigits(raw: string): string {
   return `27${digits}`;
 }
 
-/** wa.me deep link that opens a WhatsApp chat with the number, regardless of whether it's confirmed to be on WhatsApp. */
-export function whatsAppLink(raw: string): string {
-  return `https://wa.me/${toSouthAfricanDigits(raw)}`;
+/**
+ * wa.me deep link that opens a WhatsApp chat with the number, regardless of
+ * whether it's confirmed to be on WhatsApp. Pass `message` to pre-fill the
+ * chat's text box (the person opening the link still has to hit send).
+ */
+export function whatsAppLink(raw: string, message?: string): string {
+  const base = `https://wa.me/${toSouthAfricanDigits(raw)}`;
+  return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }

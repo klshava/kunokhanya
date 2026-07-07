@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { studentFormSchema, studentContactFormSchema, paymentFormSchema } from "@/lib/validations";
+import { studentLoginEmail, deriveStudentPassword } from "@/lib/students";
 
 export interface FormActionState {
   error?: string;
@@ -69,15 +71,61 @@ export async function createStudentAction(
       emergency_contact_number: parsed.data.emergency_contact_number || null,
       date_of_birth: parsed.data.date_of_birth || null,
     })
-    .select("student_id")
+    .select("student_id, student_number, full_name, email")
     .single();
 
   if (error || !student) {
     return { error: error?.message ?? "Could not create the student record" };
   }
 
+  // Auto-provision their portal login (same email/password scheme as the
+  // historical bulk import), and email it to them if we have an address on
+  // file. Neither of these blocks the registration itself if they fail --
+  // the admin can still use the "Invite to portal" fallback from here.
+  let emailed = false;
+  if (student.student_number) {
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const admin = createAdminClient();
+    const loginEmail = studentLoginEmail(student.student_number);
+    const password = deriveStudentPassword(student.full_name);
+
+    const { data: created, error: createUserError } = await admin.auth.admin.createUser({
+      email: loginEmail,
+      password,
+      email_confirm: true,
+    });
+
+    if (!createUserError && created.user) {
+      await admin.from("profiles").upsert({
+        id: created.user.id,
+        role: "student",
+        linked_student_id: student.student_id,
+        email: loginEmail,
+      });
+
+      if (student.email) {
+        try {
+          const { sendStudentCredentialsEmail } = await import("@/lib/email");
+          const host = (await headers()).get("host") ?? "localhost:3000";
+          const protocol = host.startsWith("localhost") ? "http" : "https";
+          await sendStudentCredentialsEmail({
+            to: student.email,
+            fullName: student.full_name,
+            loginEmail,
+            password,
+            loginUrl: `${protocol}://${host}/login`,
+          });
+          emailed = true;
+        } catch {
+          // Non-fatal -- the login still exists, office can share the
+          // credentials shown on the next page manually or via WhatsApp.
+        }
+      }
+    }
+  }
+
   revalidatePath("/admin/students");
-  redirect(`/admin/students/${student.student_id}?created=1`);
+  redirect(`/admin/students/${student.student_id}?created=1&emailed=${emailed ? 1 : 0}`);
 }
 
 export async function updateStudentAction(
