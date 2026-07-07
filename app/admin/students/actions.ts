@@ -180,6 +180,7 @@ export async function updateStudentAction(
     study_mode: formValue(formData, "study_mode"),
     enrollment_date: formValue(formData, "enrollment_date"),
     intake_month: intakeMonthValue(formData),
+    student_number: formValue(formData, "student_number"),
     status: formValue(formData, "status") ?? "active",
     source: formValue(formData, "source") ?? "walk-in",
     registration_fee_paid: formData.get("registration_fee_paid") === "on",
@@ -203,6 +204,14 @@ export async function updateStudentAction(
     return { error: "Another student already uses this ID number" };
   }
 
+  // Remember the current student number so we can tell whether it changed
+  // (and if so, keep the linked portal login's email in sync below).
+  const { data: before } = await supabase
+    .from("students")
+    .select("student_number")
+    .eq("student_id", studentId)
+    .single();
+
   const { error } = await supabase
     .from("students")
     .update({
@@ -216,7 +225,30 @@ export async function updateStudentAction(
     .eq("student_id", studentId);
 
   if (error) {
+    if (error.code === "23505" && error.message.includes("student_number")) {
+      return { error: `Student number "${parsed.data.student_number}" is already in use. Choose a different one.` };
+    }
     return { error: error.message };
+  }
+
+  // If the student number changed and this student has a portal login, update
+  // the login's email to match (logins use <studentnumber>@kunokhanya.co.za),
+  // so they keep signing in with their current student number.
+  const newNumber = parsed.data.student_number;
+  if (newNumber && before?.student_number && newNumber !== before.student_number) {
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const admin = createAdminClient();
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("linked_student_id", studentId)
+      .maybeSingle();
+
+    if (profile) {
+      const newLoginEmail = studentLoginEmail(newNumber);
+      await admin.auth.admin.updateUserById(profile.id, { email: newLoginEmail, email_confirm: true });
+      await admin.from("profiles").update({ email: newLoginEmail }).eq("id", profile.id);
+    }
   }
 
   revalidatePath(`/admin/students/${studentId}`);

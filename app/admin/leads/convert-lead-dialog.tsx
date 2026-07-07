@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { suggestStudentNumberAction } from "../students/actions";
 import {
   Dialog,
   DialogTrigger,
@@ -37,12 +38,31 @@ export function ConvertLeadDialog({
   const [state, formAction, pending] = useActionState(convertLeadToStudentAction, initialState);
   const armedRef = useRef(false);
 
+  const [enrollmentDate, setEnrollmentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [studentNumber, setStudentNumber] = useState("");
+  const [studentNumberEdited, setStudentNumberEdited] = useState(false);
+  const enrollmentYear = enrollmentDate.slice(0, 4);
+
   useEffect(() => {
     if (state.success && armedRef.current) {
       armedRef.current = false;
       setOpen(false);
     }
   }, [state.success]);
+
+  // Suggest the next student number for the chosen enrollment year (so a
+  // student joining next year's intake gets next year's number), unless the
+  // admin has typed their own. Only runs while the dialog is open.
+  useEffect(() => {
+    if (!open || studentNumberEdited || !/^\d{4}$/.test(enrollmentYear)) return;
+    let cancelled = false;
+    suggestStudentNumberAction(enrollmentYear).then((num) => {
+      if (!cancelled) setStudentNumber(num);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, enrollmentYear, studentNumberEdited]);
 
   return (
     <Dialog
@@ -103,6 +123,35 @@ export function ConvertLeadDialog({
                   <SelectItem value="part-time">Part time</SelectItem>
                 </SelectContent>
               </Select>
+            </FormField>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Start date" htmlFor="enrollment_date" required>
+              <Input
+                id="enrollment_date"
+                name="enrollment_date"
+                type="date"
+                value={enrollmentDate}
+                onChange={(e) => setEnrollmentDate(e.target.value)}
+                required
+              />
+            </FormField>
+            <FormField
+              label="Student number"
+              htmlFor="student_number"
+              required
+              hint="Suggested for the start-date year. Editable."
+            >
+              <Input
+                id="student_number"
+                name="student_number"
+                value={studentNumber}
+                onChange={(e) => {
+                  setStudentNumber(e.target.value);
+                  setStudentNumberEdited(true);
+                }}
+                required
+              />
             </FormField>
           </div>
 

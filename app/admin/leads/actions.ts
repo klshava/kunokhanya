@@ -21,6 +21,8 @@ const convertSchema = z.object({
   id_number: z.string().min(1, "ID / passport number is required"),
   course_id: z.string().uuid("Please select a course"),
   study_mode: z.enum(["full-time", "part-time"]),
+  enrollment_date: z.string().min(1, "Start date is required"),
+  student_number: z.string().trim().min(1, "Student number is required"),
 });
 
 function formValue(formData: FormData, key: string) {
@@ -40,6 +42,8 @@ export async function convertLeadToStudentAction(
     id_number: formValue(formData, "id_number"),
     course_id: formValue(formData, "course_id"),
     study_mode: formValue(formData, "study_mode"),
+    enrollment_date: formValue(formData, "enrollment_date"),
+    student_number: formValue(formData, "student_number"),
   });
 
   if (!parsed.success) {
@@ -67,12 +71,17 @@ export async function convertLeadToStudentAction(
       contact_number: parsed.data.contact_number || null,
       course_id: parsed.data.course_id,
       study_mode: parsed.data.study_mode,
+      enrollment_date: parsed.data.enrollment_date,
+      student_number: parsed.data.student_number,
       source: "wordpress",
     })
     .select("student_id")
     .single();
 
   if (studentError || !student) {
+    if (studentError?.code === "23505" && studentError.message.includes("student_number")) {
+      return { error: `Student number "${parsed.data.student_number}" is already in use. Choose a different one.` };
+    }
     return { error: studentError?.message ?? "Could not create the student record" };
   }
 

@@ -45,7 +45,7 @@ export function StudentForm({
   const [enrollmentDate, setEnrollmentDate] = useState(
     student?.enrollment_date ?? new Date().toISOString().slice(0, 10)
   );
-  const [studentNumber, setStudentNumber] = useState(suggestedStudentNumber ?? "");
+  const [studentNumber, setStudentNumber] = useState(student?.student_number ?? suggestedStudentNumber ?? "");
   const [studentNumberEdited, setStudentNumberEdited] = useState(false);
   const enrollmentYear = enrollmentDate.slice(0, 4);
 
@@ -158,25 +158,27 @@ export function StudentForm({
       </section>
 
       <section className="grid grid-cols-1 gap-5 border-t border-border-soft pt-6 sm:grid-cols-2">
-        {!student && (
-          <FormField
-            label="Student number"
-            htmlFor="student_number"
+        <FormField
+          label="Student number"
+          htmlFor="student_number"
+          required
+          hint={
+            student
+              ? "Editable. Changing this also updates the student's portal login if they have one."
+              : "Auto-suggested based on the next available number for the enrollment year. Editable if needed."
+          }
+        >
+          <Input
+            id="student_number"
+            name="student_number"
+            value={studentNumber}
+            onChange={(e) => {
+              setStudentNumber(e.target.value);
+              setStudentNumberEdited(true);
+            }}
             required
-            hint="Auto-suggested based on the next available number for the enrollment year. Editable if needed."
-          >
-            <Input
-              id="student_number"
-              name="student_number"
-              value={studentNumber}
-              onChange={(e) => {
-                setStudentNumber(e.target.value);
-                setStudentNumberEdited(true);
-              }}
-              required
-            />
-          </FormField>
-        )}
+          />
+        </FormField>
 
         <FormField label="Course" htmlFor="course_id" required>
           <Select name="course_id" defaultValue={student?.course_id ?? undefined}>
