@@ -50,6 +50,14 @@ export async function POST(request: NextRequest) {
 
   const parsed = leadPayloadSchema.safeParse(body);
   if (!parsed.success) {
+    // Temporary: capture whatever shape a non-matching request actually sent,
+    // so we can see the real field names some form plugins use instead of
+    // guessing. See supabase/migrations/0006_webhook_debug_log.sql.
+    if (body && typeof body === "object" && Object.keys(body).length > 0) {
+      const admin = createAdminClient();
+      // Temporary debug table, not in the hand-maintained Database types.
+      await (admin.from("webhook_debug_log" as never) as any).insert({ payload: body });
+    }
     return NextResponse.json({ success: true, skipped: "No usable lead data in this request" }, { status: 200 });
   }
 
