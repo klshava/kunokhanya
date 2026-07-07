@@ -10,6 +10,7 @@ import { StudentForm } from "../student-form";
 import { updateStudentAction } from "../actions";
 import { AddPaymentDialog } from "./add-payment-dialog";
 import { InviteButton } from "./invite-button";
+import { DeleteStudentDialog } from "./delete-student-dialog";
 import type { Course, Payment, Student } from "@/lib/database.types";
 import { FileText, Printer } from "lucide-react";
 
@@ -114,6 +115,22 @@ export function DetailTabs({
         <Card>
           <CardContent className="p-6 sm:p-8">
             <StudentForm courses={courses} student={student} action={boundUpdate} submitLabel="Save changes" />
+          </CardContent>
+        </Card>
+
+        <Card className="mt-4 border-danger/20">
+          <CardContent className="flex items-center justify-between p-6">
+            <div>
+              <h3 className="text-[15px] font-semibold text-ink">Delete this student</h3>
+              <p className="text-sm text-ink-soft">
+                Permanently removes their record, payment history{hasPortalAccount ? ", and portal login" : ""}.
+              </p>
+            </div>
+            <DeleteStudentDialog
+              studentId={student.student_id}
+              studentName={student.full_name}
+              hasPortalAccount={hasPortalAccount}
+            />
           </CardContent>
         </Card>
       </TabsContent>

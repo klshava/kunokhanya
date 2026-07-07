@@ -256,3 +256,53 @@ export async function inviteStudentToPortalAction(studentId: string, email: stri
   revalidatePath(`/admin/students/${studentId}`);
   return { success: true };
 }
+
+export async function deleteStudentAction(studentId: string): Promise<FormActionState> {
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const supabase = await createClient();
+
+  // Defense in depth: confirm the caller is really an admin before using the
+  // service-role client (RLS already enforces this on every table, but the
+  // admin client bypasses RLS so we double check explicitly here too).
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "admin") {
+    return { error: "Only admins can do this" };
+  }
+
+  const admin = createAdminClient();
+
+  // Delete the portal login (if any) first. Deleting the auth user cascades
+  // to its profiles row automatically (profiles.id references auth.users
+  // with ON DELETE CASCADE), so there's no separate profile cleanup needed.
+  const { data: linkedProfile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("linked_student_id", studentId)
+    .maybeSingle();
+
+  if (linkedProfile) {
+    const { error: authError } = await admin.auth.admin.deleteUser(linkedProfile.id);
+    if (authError) {
+      return { error: `Could not delete the portal login: ${authError.message}` };
+    }
+  }
+
+  // Payments cascade automatically (payments.student_id has ON DELETE CASCADE).
+  const { error } = await admin.from("students").delete().eq("student_id", studentId);
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/admin/students");
+  redirect("/admin/students");
+}
