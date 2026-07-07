@@ -7,9 +7,22 @@ import { formatDate } from "@/lib/currency";
 import { whatsAppLink } from "@/lib/phone";
 import { ConvertLeadDialog } from "./convert-lead-dialog";
 import { LeadStatusSelect } from "./lead-status-select";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Inbox, PhoneCall, UserCheck, XCircle } from "lucide-react";
+import type { LeadStatus } from "@/lib/database.types";
 
 const PAGE_SIZE = 50;
+const STATUS_LABELS: Record<LeadStatus, string> = {
+  new: "New",
+  contacted: "Contacted",
+  converted: "Converted",
+  rejected: "Rejected",
+};
+const STATUS_ICONS: Record<LeadStatus, typeof Inbox> = {
+  new: Inbox,
+  contacted: PhoneCall,
+  converted: UserCheck,
+  rejected: XCircle,
+};
 
 export default async function LeadsPage({
   searchParams,
@@ -20,32 +33,43 @@ export default async function LeadsPage({
   const course = typeof params.course === "string" ? params.course : "";
   const from = typeof params.from === "string" ? params.from : "";
   const to = typeof params.to === "string" ? params.to : "";
+  const status = typeof params.status === "string" ? params.status : "";
   const page = Math.max(1, parseInt(typeof params.page === "string" ? params.page : "1", 10) || 1);
 
   const supabase = await createClient();
 
-  // Distinct course_interested values for the filter dropdown (paginated fetch
-  // of just this one column since the table can exceed the 1,000-row cap).
+  // Distinct course_interested values for the filter dropdown, and a status
+  // breakdown for the summary cards below — both need every row's value, so
+  // fetch just those columns paginated (the table can exceed the 1,000-row cap).
   const courseValues: string[] = [];
+  const statusValues: string[] = [];
   {
+    let statusQuery = supabase.from("website_leads").select("course_interested,status");
+    if (course) statusQuery = statusQuery.eq("course_interested", course);
+    if (from) statusQuery = statusQuery.gte("submitted_at", `${from}T00:00:00`);
+    if (to) statusQuery = statusQuery.lte("submitted_at", `${to}T23:59:59`);
+
     let offset = 0;
     while (true) {
-      const { data } = await supabase
-        .from("website_leads")
-        .select("course_interested")
-        .range(offset, offset + 999);
+      const { data } = await statusQuery.range(offset, offset + 999);
       const batch = data ?? [];
       courseValues.push(...batch.map((b) => b.course_interested).filter((c): c is string => !!c));
+      statusValues.push(...batch.map((b) => b.status));
       if (batch.length < 1000) break;
       offset += 1000;
     }
   }
   const courseOptions = Array.from(new Set(courseValues)).sort();
+  const statusCounts = statusValues.reduce(
+    (acc, s) => ({ ...acc, [s]: (acc[s as LeadStatus] ?? 0) + 1 }),
+    {} as Record<LeadStatus, number>
+  );
 
   let query = supabase.from("website_leads").select("*", { count: "exact" });
   if (course) query = query.eq("course_interested", course);
   if (from) query = query.gte("submitted_at", `${from}T00:00:00`);
   if (to) query = query.lte("submitted_at", `${to}T23:59:59`);
+  if (status) query = query.eq("status", status as LeadStatus);
   query = query.order("submitted_at", { ascending: false }).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
   const { data: leads, count } = await query;
@@ -62,7 +86,18 @@ export default async function LeadsPage({
     if (course) p.set("course", course);
     if (from) p.set("from", from);
     if (to) p.set("to", to);
+    if (status) p.set("status", status);
     if (targetPage > 1) p.set("page", String(targetPage));
+    const qs = p.toString();
+    return qs ? `/admin/leads?${qs}` : "/admin/leads";
+  }
+
+  function statusHref(targetStatus: string) {
+    const p = new URLSearchParams();
+    if (course) p.set("course", course);
+    if (from) p.set("from", from);
+    if (to) p.set("to", to);
+    if (targetStatus && targetStatus !== status) p.set("status", targetStatus);
     const qs = p.toString();
     return qs ? `/admin/leads?${qs}` : "/admin/leads";
   }
@@ -75,8 +110,34 @@ export default async function LeadsPage({
         backHref="/admin"
       />
 
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {(Object.keys(STATUS_LABELS) as LeadStatus[]).map((s) => {
+          const Icon = STATUS_ICONS[s];
+          const active = status === s;
+          return (
+            <Link key={s} href={statusHref(s)}>
+              <Card
+                className={`p-4 transition-colors ${active ? "ring-2 ring-brand-600" : "hover:bg-background/60"}`}
+              >
+                <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <p className="text-xs text-ink-faint">{STATUS_LABELS[s]}</p>
+                <p className="mt-0.5 text-xl font-semibold tracking-tight text-ink">
+                  {statusCounts[s] ?? 0}
+                </p>
+              </Card>
+            </Link>
+          );
+        })}
+      </div>
+
       <Card className="mb-6 p-4 sm:p-5">
-        <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+        <form
+          method="get"
+          key={`${course}-${status}-${from}-${to}`}
+          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap"
+        >
           <select
             name="course"
             defaultValue={course}
@@ -86,6 +147,19 @@ export default async function LeadsPage({
             {courseOptions.map((c) => (
               <option key={c} value={c}>
                 {c}
+              </option>
+            ))}
+          </select>
+
+          <select
+            name="status"
+            defaultValue={status}
+            className="h-10 rounded-xl border border-border bg-surface px-3 text-sm text-ink"
+          >
+            <option value="">Any status</option>
+            {(Object.keys(STATUS_LABELS) as LeadStatus[]).map((s) => (
+              <option key={s} value={s}>
+                {STATUS_LABELS[s]}
               </option>
             ))}
           </select>
