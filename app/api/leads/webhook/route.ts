@@ -81,15 +81,17 @@ export async function POST(request: NextRequest) {
 
   const normalized = body && typeof body === "object" ? normalizeLeadPayload(body as Record<string, unknown>) : {};
   const parsed = leadPayloadSchema.safeParse(normalized);
+
+  // TEMPORARY (remove once the new application-form fields' Forminator codes
+  // are confirmed): log every real submission's raw body, not just failed
+  // ones, so we can see the field codes for id_number/date_of_birth/gender/
+  // physical_address/study_mode/intake_month instead of guessing them.
+  if (body && typeof body === "object" && Object.keys(body).length > 0) {
+    const admin = createAdminClient();
+    await (admin.from("webhook_debug_log" as never) as any).insert({ payload: body });
+  }
+
   if (!parsed.success) {
-    // Temporary: capture whatever shape a non-matching request actually sent,
-    // so we can see the real field names some form plugins use instead of
-    // guessing. See supabase/migrations/0006_webhook_debug_log.sql.
-    if (body && typeof body === "object" && Object.keys(body).length > 0) {
-      const admin = createAdminClient();
-      // Temporary debug table, not in the hand-maintained Database types.
-      await (admin.from("webhook_debug_log" as never) as any).insert({ payload: body });
-    }
     return NextResponse.json({ success: true, skipped: "No usable lead data in this request" }, { status: 200 });
   }
 
