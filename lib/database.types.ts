@@ -5,7 +5,7 @@
  *   npx supabase gen types typescript --project-id <your-project-id> > lib/database.types.ts
  */
 
-export type UserRole = "admin" | "student";
+export type UserRole = "admin" | "student" | "registrar" | "facilitator";
 export type StudyMode = "full-time" | "part-time";
 export type StudentStatus = "active" | "completed" | "withdrawn";
 export type StudentSource = "walk-in" | "website" | "referral" | "wordpress";
@@ -152,6 +152,7 @@ export interface Database {
           id: string;
           role: UserRole;
           linked_student_id: string | null;
+          linked_staff_id: string | null;
           full_name: string | null;
           email: string | null;
           created_at: string;
@@ -176,6 +177,31 @@ export interface Database {
         };
         Relationships: [];
       };
+      students_directory: {
+        Row: {
+          student_id: string;
+          student_number: string | null;
+          full_name: string;
+          id_number: string | null;
+          date_of_birth: string | null;
+          gender: Gender | null;
+          contact_number: string | null;
+          email: string | null;
+          physical_address: string | null;
+          emergency_contact_name: string | null;
+          emergency_contact_number: string | null;
+          course_id: string | null;
+          course_name: string | null;
+          study_mode: StudyMode;
+          enrollment_date: string;
+          status: StudentStatus;
+          source: StudentSource;
+          intake_month: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       update_my_student_contact: {
@@ -189,6 +215,18 @@ export interface Database {
         Returns: Database["public"]["Tables"]["students"]["Row"];
       };
       is_admin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      is_registrar: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      is_facilitator: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      is_admin_or_registrar: {
         Args: Record<string, never>;
         Returns: boolean;
       };
@@ -207,3 +245,4 @@ export type Payment = Database["public"]["Tables"]["payments"]["Row"];
 export type WebsiteLead = Database["public"]["Tables"]["website_leads"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type StudentBalance = Database["public"]["Views"]["student_balances"]["Row"];
+export type StudentDirectoryRow = Database["public"]["Views"]["students_directory"]["Row"];

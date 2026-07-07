@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentRole } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +10,9 @@ import { whatsAppLink } from "@/lib/phone";
 import { UserPlus, MessageCircle } from "lucide-react";
 
 export default async function StaffListPage() {
+  const role = await getCurrentRole();
+  if (role === "facilitator") redirect("/admin");
+
   const supabase = await createClient();
   const { data: staff } = await supabase
     .from("staff")

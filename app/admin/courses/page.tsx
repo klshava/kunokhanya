@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentRole } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +9,9 @@ import { CourseDialog } from "./course-dialog";
 import { createCourseAction, updateCourseAction } from "./actions";
 
 export default async function CourseManagementPage() {
+  const role = await getCurrentRole();
+  if (role === "facilitator") redirect("/admin");
+
   const supabase = await createClient();
   const { data: courses } = await supabase.from("courses").select("*").order("course_name");
 

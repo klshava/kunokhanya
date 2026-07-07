@@ -22,7 +22,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/login");
   }
 
-  if (profile.role !== "admin") {
+  const STAFF_ROLES = ["admin", "registrar", "facilitator"];
+  if (!STAFF_ROLES.includes(profile.role)) {
     redirect("/portal");
   }
 

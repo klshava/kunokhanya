@@ -1,5 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentRole } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { StaffForm } from "../staff-form";
@@ -12,6 +13,9 @@ export default async function StaffDetailPage({
   params: Promise<{ staffId: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const role = await getCurrentRole();
+  if (role === "facilitator") redirect("/admin");
+
   const { staffId } = await params;
   const sp = await searchParams;
   const supabase = await createClient();

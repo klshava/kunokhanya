@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentRole } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { StudentForm } from "../student-form";
@@ -6,6 +8,9 @@ import { createStudentAction } from "../actions";
 import { suggestNextStudentNumber } from "@/lib/students";
 
 export default async function NewStudentPage() {
+  const role = await getCurrentRole();
+  if (role !== "admin" && role !== "registrar") redirect("/admin/students");
+
   const supabase = await createClient();
   const { data: courses } = await supabase
     .from("courses")

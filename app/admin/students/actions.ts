@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { requireRole } from "@/lib/auth";
 import { studentFormSchema, studentContactFormSchema, paymentFormSchema } from "@/lib/validations";
 import { studentLoginEmail, deriveStudentPassword, suggestNextStudentNumber } from "@/lib/students";
 
@@ -93,6 +94,9 @@ export async function createStudentAction(
   _prevState: FormActionState,
   formData: FormData
 ): Promise<FormActionState> {
+  const check = await requireRole(["admin", "registrar"]);
+  if (!check.ok) return { error: check.error };
+
   const raw = {
     full_name: formValue(formData, "full_name"),
     id_number: formValue(formData, "id_number"),
@@ -329,27 +333,13 @@ export async function addPaymentAction(
 export async function inviteStudentToPortalAction(
   studentId: string
 ): Promise<{ success?: boolean; emailed?: boolean; error?: string }> {
+  // Defense in depth: confirm the caller is really admin/registrar before
+  // using the service-role client below (RLS already enforces this on every
+  // table, but the admin client bypasses RLS so we double check here too).
+  const check = await requireRole(["admin", "registrar"]);
+  if (!check.ok) return { error: check.error };
+
   const { createAdminClient } = await import("@/lib/supabase/admin");
-  const supabase = await createClient();
-
-  // Defense in depth: confirm the caller is really an admin before using the
-  // service-role client (RLS already enforces this on every table, but the
-  // admin client bypasses RLS so we double check explicitly here too).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not signed in" };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") {
-    return { error: "Only admins can do this" };
-  }
-
   const admin = createAdminClient();
   const { data: student } = await admin
     .from("students")
@@ -377,27 +367,13 @@ export async function inviteStudentToPortalAction(
 }
 
 export async function deleteStudentAction(studentId: string): Promise<FormActionState> {
+  // Defense in depth: confirm the caller is really admin/registrar before
+  // using the service-role client below (RLS already enforces this on every
+  // table, but the admin client bypasses RLS so we double check here too).
+  const check = await requireRole(["admin", "registrar"]);
+  if (!check.ok) return { error: check.error };
+
   const { createAdminClient } = await import("@/lib/supabase/admin");
-  const supabase = await createClient();
-
-  // Defense in depth: confirm the caller is really an admin before using the
-  // service-role client (RLS already enforces this on every table, but the
-  // admin client bypasses RLS so we double check explicitly here too).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Not signed in" };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") {
-    return { error: "Only admins can do this" };
-  }
-
   const admin = createAdminClient();
 
   // Delete the portal login (if any) first. Deleting the auth user cascades

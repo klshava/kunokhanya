@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentRole } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -135,6 +137,9 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const role = await getCurrentRole();
+  if (role !== "admin") redirect("/admin");
+
   const params = await searchParams;
   const courseId = typeof params.course === "string" ? params.course : "";
   const intake = typeof params.intake === "string" ? params.intake : "";

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentRole } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,14 +34,21 @@ export default async function StudentLookupPage({
   const studyMode = typeof params.study_mode === "string" ? params.study_mode : "";
   const status = typeof params.status === "string" ? params.status : "";
 
+  const role = await getCurrentRole();
+  const isFacilitator = role === "facilitator";
+
   const supabase = await createClient();
   const { data: courses } = await supabase.from("courses").select("course_id, course_name").order("course_name");
 
   // Status breakdown for the summary cards -- needs every matching row's status,
   // so fetch just that column paginated (the table can exceed the 1,000-row cap).
+  // Facilitators have no RLS access to the base students table at all -- they
+  // read from students_directory instead, which never has financial columns.
   const statusValues: StudentStatus[] = [];
   {
-    let statusQuery = supabase.from("students").select("status");
+    let statusQuery = isFacilitator
+      ? supabase.from("students_directory").select("status")
+      : supabase.from("students").select("status");
     if (q) {
       statusQuery = statusQuery.or(
         `full_name.ilike.%${q}%,id_number.ilike.%${q}%,student_number.ilike.%${q}%`
@@ -74,11 +82,17 @@ export default async function StudentLookupPage({
     return qs ? `/admin/students?${qs}` : "/admin/students";
   }
 
-  let query = supabase
-    .from("students")
-    .select("student_id, student_number, full_name, id_number, contact_number, study_mode, status, courses(course_name)")
-    .order("student_number", { ascending: false, nullsFirst: false })
-    .limit(100);
+  let query = isFacilitator
+    ? supabase
+        .from("students_directory")
+        .select("student_id, student_number, full_name, id_number, contact_number, study_mode, status, course_name")
+        .order("student_number", { ascending: false, nullsFirst: false })
+        .limit(100)
+    : supabase
+        .from("students")
+        .select("student_id, student_number, full_name, id_number, contact_number, study_mode, status, courses(course_name)")
+        .order("student_number", { ascending: false, nullsFirst: false })
+        .limit(100);
 
   if (q) {
     query = query.or(
@@ -98,12 +112,14 @@ export default async function StudentLookupPage({
         description="Search and filter your student records."
         backHref="/admin"
         actions={
-          <Link href="/admin/students/new">
-            <Button variant="brand">
-              <UserPlus className="h-4 w-4" />
-              Register student
-            </Button>
-          </Link>
+          isFacilitator ? undefined : (
+            <Link href="/admin/students/new">
+              <Button variant="brand">
+                <UserPlus className="h-4 w-4" />
+                Register student
+              </Button>
+            </Link>
+          )
         }
       />
 
@@ -207,11 +223,18 @@ export default async function StudentLookupPage({
               {!error && students?.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-5 py-10 text-center text-ink-soft">
-                    No students match your search. Try adjusting the filters, or{" "}
-                    <Link href="/admin/students/new" className="text-brand-600 underline">
-                      register a new student
-                    </Link>
-                    .
+                    No students match your search.{" "}
+                    {isFacilitator ? (
+                      "Try adjusting the filters."
+                    ) : (
+                      <>
+                        Try adjusting the filters, or{" "}
+                        <Link href="/admin/students/new" className="text-brand-600 underline">
+                          register a new student
+                        </Link>
+                        .
+                      </>
+                    )}
                   </td>
                 </tr>
               )}
@@ -227,7 +250,7 @@ export default async function StudentLookupPage({
                     <p className="text-xs text-ink-faint">{s.id_number}</p>
                   </td>
                   <td className="px-5 py-3 text-ink-soft">{s.student_number ?? "-"}</td>
-                  <td className="px-5 py-3 text-ink-soft">{s.courses?.course_name ?? "-"}</td>
+                  <td className="px-5 py-3 text-ink-soft">{s.courses?.course_name ?? s.course_name ?? "-"}</td>
                   <td className="px-5 py-3 text-ink-soft capitalize">{s.study_mode}</td>
                   <td className="px-5 py-3">
                     <Badge variant={statusVariant[s.status as keyof typeof statusVariant] ?? "neutral"} className="capitalize">

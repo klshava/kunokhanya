@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentRole } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +31,9 @@ export default async function LeadsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const role = await getCurrentRole();
+  if (role === "facilitator") redirect("/admin");
+
   const params = await searchParams;
   const course = typeof params.course === "string" ? params.course : "";
   const from = typeof params.from === "string" ? params.from : "";

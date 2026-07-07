@@ -11,6 +11,7 @@ import { updateStudentAction } from "../actions";
 import { AddPaymentDialog } from "./add-payment-dialog";
 import { InviteButton } from "./invite-button";
 import { DeleteStudentDialog } from "./delete-student-dialog";
+import { StudentDetailsReadonly } from "./student-details-readonly";
 import type { Course, Payment, Student } from "@/lib/database.types";
 import { FileText, Printer } from "lucide-react";
 
@@ -19,11 +20,15 @@ export function DetailTabs({
   courses,
   payments,
   hasPortalAccount,
+  canSeeFinance,
+  canEdit,
 }: {
   student: Student & { courses: Course | null };
   courses: Course[];
   payments: Payment[];
   hasPortalAccount: boolean;
+  canSeeFinance: boolean;
+  canEdit: boolean;
 }) {
   const course = student.courses;
   const registrationFee = Number(student.registration_fee_override ?? course?.registration_fee ?? 0);
@@ -34,16 +39,17 @@ export function DetailTabs({
   const boundUpdate = updateStudentAction.bind(null, student.student_id);
 
   return (
-    <Tabs defaultValue="fees">
+    <Tabs defaultValue={canSeeFinance ? "fees" : "details"}>
       <div className="mb-6 flex items-center justify-between">
         <TabsList>
-          <TabsTrigger value="fees">Fee statement</TabsTrigger>
+          {canSeeFinance && <TabsTrigger value="fees">Fee statement</TabsTrigger>}
           <TabsTrigger value="details">Student details</TabsTrigger>
         </TabsList>
-        {!hasPortalAccount && <InviteButton studentId={student.student_id} />}
+        {canEdit && !hasPortalAccount && <InviteButton studentId={student.student_id} />}
         {hasPortalAccount && <Badge variant="success">Has portal account</Badge>}
       </div>
 
+      {canSeeFinance && (
       <TabsContent value="fees">
         <div className="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatTile label="Registration fee" value={formatZAR(registrationFee)} />
@@ -110,29 +116,36 @@ export function DetailTabs({
           </CardContent>
         </Card>
       </TabsContent>
+      )}
 
       <TabsContent value="details">
         <Card>
           <CardContent className="p-6 sm:p-8">
-            <StudentForm courses={courses} student={student} action={boundUpdate} submitLabel="Save changes" />
+            {canEdit ? (
+              <StudentForm courses={courses} student={student} action={boundUpdate} submitLabel="Save changes" />
+            ) : (
+              <StudentDetailsReadonly student={student as any} />
+            )}
           </CardContent>
         </Card>
 
-        <Card className="mt-4 border-danger/20">
-          <CardContent className="flex items-center justify-between p-6">
-            <div>
-              <h3 className="text-[15px] font-semibold text-ink">Delete this student</h3>
-              <p className="text-sm text-ink-soft">
-                Permanently removes their record, payment history{hasPortalAccount ? ", and portal login" : ""}.
-              </p>
-            </div>
-            <DeleteStudentDialog
-              studentId={student.student_id}
-              studentName={student.full_name}
-              hasPortalAccount={hasPortalAccount}
-            />
-          </CardContent>
-        </Card>
+        {canEdit && (
+          <Card className="mt-4 border-danger/20">
+            <CardContent className="flex items-center justify-between p-6">
+              <div>
+                <h3 className="text-[15px] font-semibold text-ink">Delete this student</h3>
+                <p className="text-sm text-ink-soft">
+                  Permanently removes their record, payment history{hasPortalAccount ? ", and portal login" : ""}.
+                </p>
+              </div>
+              <DeleteStudentDialog
+                studentId={student.student_id}
+                studentName={student.full_name}
+                hasPortalAccount={hasPortalAccount}
+              />
+            </CardContent>
+          </Card>
+        )}
       </TabsContent>
     </Tabs>
   );
