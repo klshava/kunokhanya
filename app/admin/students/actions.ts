@@ -416,6 +416,14 @@ export async function deleteStudentAction(studentId: string): Promise<FormAction
     }
   }
 
+  // If this student came from a converted lead, un-convert it back to "new"
+  // instead of leaving it stuck at "converted" with a dangling link (the FK
+  // itself is ON DELETE SET NULL, but that alone wouldn't reset the status).
+  await admin
+    .from("website_leads")
+    .update({ status: "new", converted_student_id: null })
+    .eq("converted_student_id", studentId);
+
   // Payments cascade automatically (payments.student_id has ON DELETE CASCADE).
   const { error } = await admin.from("students").delete().eq("student_id", studentId);
   if (error) {
@@ -423,5 +431,6 @@ export async function deleteStudentAction(studentId: string): Promise<FormAction
   }
 
   revalidatePath("/admin/students");
+  revalidatePath("/admin/leads");
   redirect("/admin/students");
 }
