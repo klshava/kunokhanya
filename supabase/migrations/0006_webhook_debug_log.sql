@@ -1,7 +1,7 @@
--- Temporary table to inspect the raw payload WordPress form plugins actually
--- send to /api/leads/webhook, since some (e.g. Forminator) don't let you
--- rename fields to match our expected JSON keys. Safe to drop once the
--- mapping is confirmed working -- see 0007_drop_webhook_debug_log.sql.
+-- Captures the raw payload of any webhook request to /api/leads/webhook that
+-- doesn't match a known field mapping, since some WordPress form plugins
+-- (e.g. Forminator) send fixed internal field codes instead of letting you
+-- rename fields. Useful again if a new form is ever connected.
 create table if not exists public.webhook_debug_log (
   id uuid primary key default gen_random_uuid(),
   payload jsonb,
