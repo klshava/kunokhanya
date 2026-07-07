@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import LoginForm from "./login-form";
@@ -29,6 +30,14 @@ export default async function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm animate-rise-in">
         <div className="mb-8 text-center">
+          <Image
+            src="/logo.png"
+            alt="Kunokhanya Training Academy"
+            width={88}
+            height={92}
+            className="mx-auto mb-3"
+            priority
+          />
           <h1 className="text-2xl font-semibold tracking-tight text-ink">Kunokhanya Training Academy</h1>
           <p className="mt-1.5 text-sm text-ink-soft">Sign in to your account</p>
         </div>

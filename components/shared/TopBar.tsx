@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { signOutAction } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/button";
@@ -14,9 +15,7 @@ export function TopBar({
     <header className="no-print sticky top-0 z-30 border-b border-border-soft bg-surface/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link href={homeHref} className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">
-            K
-          </span>
+          <Image src="/logo.png" alt="Kunokhanya Training Academy" width={32} height={33} />
           <span className="text-[15px] font-semibold tracking-tight text-ink">
             Kunokhanya Training Academy
           </span>

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatZAR, formatDate } from "@/lib/currency";
@@ -56,12 +57,28 @@ export default async function FeeStatementPrintPage({
         <PrintButton />
       </div>
 
-      <div className="mb-8 flex items-center justify-between border-b border-border-soft pb-6">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Kunokhanya Training Academy</h1>
-          <p className="text-sm text-ink-soft">Fee statement</p>
+      <div className="mb-8 flex items-start justify-between border-b border-border-soft pb-6">
+        <div className="text-sm text-ink-soft">
+          <p>30 Von Brandis &amp; Cnr Main Streets</p>
+          <p>Blooms Building</p>
+          <p>Johannesburg CBD</p>
+          <p className="mt-1">Tel: (011) 331 0205 / 082 3469 676</p>
+          <p>Email: kunokukhanya@safrica.com</p>
         </div>
-        <p className="text-sm text-ink-soft">{formatDate(new Date().toISOString())}</p>
+        <div className="text-center">
+          <h1 className="text-lg font-bold tracking-tight">KUNOKHANYA TRAINING ACADEMY</h1>
+          <Image src="/logo.png" alt="Kunokhanya Training Academy" width={72} height={75} className="mx-auto my-2" />
+          <p className="text-xs text-ink-soft">HWSETA Reg: HW591PA166719</p>
+          <p className="text-xs text-ink-soft">QCTO Number: 07-QCTO/SDP130623135748</p>
+        </div>
+      </div>
+
+      <div className="mb-6 flex items-center justify-between text-sm">
+        <h2 className="font-semibold uppercase tracking-wide">Fee statement</h2>
+        <p className="text-ink-soft">
+          <span className="font-semibold">Date: </span>
+          {formatDate(new Date().toISOString())}
+        </p>
       </div>
 
       <div className="mb-8 grid grid-cols-2 gap-4 text-sm">
@@ -143,6 +160,8 @@ export default async function FeeStatementPrintPage({
         This statement was generated on {formatDate(new Date().toISOString())}. For queries, contact the academy
         office.
       </p>
+
+      <p className="mt-6 text-center text-sm font-bold tracking-wide">QUALITY IN STYLE!</p>
     </div>
   );
 }
