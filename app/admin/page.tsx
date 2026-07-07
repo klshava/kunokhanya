@@ -7,6 +7,7 @@ import {
   Inbox,
   Users,
   UserCog,
+  CalendarCheck,
 } from "lucide-react";
 import { LauncherTile } from "@/components/admin/LauncherTile";
 import { getCurrentRole } from "@/lib/auth";
@@ -46,6 +47,13 @@ export default async function AdminDashboardPage() {
           description="Search and manage records"
           icon={Search}
           tint="blue"
+        />
+        <LauncherTile
+          href="/admin/attendance"
+          label="Attendance"
+          description="Tick weekly attendance by course"
+          icon={CalendarCheck}
+          tint="emerald"
         />
         {canSeeFinance && (
           <LauncherTile

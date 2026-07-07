@@ -164,6 +164,31 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["profiles"]["Row"]>;
         Relationships: [];
       };
+      attendance: {
+        Row: {
+          attendance_id: string;
+          student_id: string;
+          attendance_date: string;
+          present: boolean;
+          marked_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["attendance"]["Row"]> & {
+          student_id: string;
+          attendance_date: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["attendance"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "attendance_student_id_fkey";
+            columns: ["student_id"];
+            isOneToOne: false;
+            referencedRelation: "students";
+            referencedColumns: ["student_id"];
+          }
+        ];
+      };
     };
     Views: {
       student_balances: {
@@ -230,6 +255,10 @@ export interface Database {
         Args: Record<string, never>;
         Returns: boolean;
       };
+      is_staff: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
       my_linked_student_id: {
         Args: Record<string, never>;
         Returns: string;
@@ -244,5 +273,6 @@ export type Staff = Database["public"]["Tables"]["staff"]["Row"];
 export type Payment = Database["public"]["Tables"]["payments"]["Row"];
 export type WebsiteLead = Database["public"]["Tables"]["website_leads"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type Attendance = Database["public"]["Tables"]["attendance"]["Row"];
 export type StudentBalance = Database["public"]["Views"]["student_balances"]["Row"];
 export type StudentDirectoryRow = Database["public"]["Views"]["students_directory"]["Row"];
