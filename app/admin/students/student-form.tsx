@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,17 +18,20 @@ import {
 import { validateSAId } from "@/lib/sa-id";
 import type { Course, Student } from "@/lib/database.types";
 import type { FormActionState } from "./actions";
+import { suggestStudentNumberAction } from "./actions";
 
 const initialState: FormActionState = {};
 
 export function StudentForm({
   courses,
   student,
+  suggestedStudentNumber,
   action,
   submitLabel,
 }: {
   courses: Course[];
   student?: Student;
+  suggestedStudentNumber?: string;
   action: (state: FormActionState, formData: FormData) => Promise<FormActionState>;
   submitLabel: string;
 }) {
@@ -39,6 +42,23 @@ export function StudentForm({
   const [dob, setDob] = useState(student?.date_of_birth ?? "");
   const [gender, setGender] = useState(student?.gender ?? "");
   const [intakeMonth, setIntakeMonth] = useState(student?.intake_month ?? "");
+  const [enrollmentDate, setEnrollmentDate] = useState(
+    student?.enrollment_date ?? new Date().toISOString().slice(0, 10)
+  );
+  const [studentNumber, setStudentNumber] = useState(suggestedStudentNumber ?? "");
+  const [studentNumberEdited, setStudentNumberEdited] = useState(false);
+  const enrollmentYear = enrollmentDate.slice(0, 4);
+
+  useEffect(() => {
+    if (student || studentNumberEdited || !/^\d{4}$/.test(enrollmentYear)) return;
+    let cancelled = false;
+    suggestStudentNumberAction(enrollmentYear).then((num) => {
+      if (!cancelled) setStudentNumber(num);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [enrollmentYear, studentNumberEdited, student]);
 
   function handleIdBlur() {
     if (/^\d{13}$/.test(idNumber)) {
@@ -138,6 +158,26 @@ export function StudentForm({
       </section>
 
       <section className="grid grid-cols-1 gap-5 border-t border-border-soft pt-6 sm:grid-cols-2">
+        {!student && (
+          <FormField
+            label="Student number"
+            htmlFor="student_number"
+            required
+            hint="Auto-suggested based on the next available number for the enrollment year. Editable if needed."
+          >
+            <Input
+              id="student_number"
+              name="student_number"
+              value={studentNumber}
+              onChange={(e) => {
+                setStudentNumber(e.target.value);
+                setStudentNumberEdited(true);
+              }}
+              required
+            />
+          </FormField>
+        )}
+
         <FormField label="Course" htmlFor="course_id" required>
           <Select name="course_id" defaultValue={student?.course_id ?? undefined}>
             <SelectTrigger id="course_id">
@@ -170,7 +210,8 @@ export function StudentForm({
             id="enrollment_date"
             name="enrollment_date"
             type="date"
-            defaultValue={student?.enrollment_date ?? new Date().toISOString().slice(0, 10)}
+            value={enrollmentDate}
+            onChange={(e) => setEnrollmentDate(e.target.value)}
             required
           />
         </FormField>

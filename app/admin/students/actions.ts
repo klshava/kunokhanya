@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { studentFormSchema, studentContactFormSchema, paymentFormSchema } from "@/lib/validations";
-import { studentLoginEmail, deriveStudentPassword } from "@/lib/students";
+import { studentLoginEmail, deriveStudentPassword, suggestNextStudentNumber } from "@/lib/students";
 
 export interface FormActionState {
   error?: string;
@@ -20,6 +20,11 @@ function formValue(formData: FormData, key: string) {
 function intakeMonthValue(formData: FormData) {
   const v = formValue(formData, "intake_month");
   return v === "unset" ? undefined : v;
+}
+
+export async function suggestStudentNumberAction(year: string): Promise<string> {
+  const supabase = await createClient();
+  return suggestNextStudentNumber(supabase, year);
 }
 
 export async function createStudentAction(
@@ -40,6 +45,7 @@ export async function createStudentAction(
     study_mode: formValue(formData, "study_mode"),
     enrollment_date: formValue(formData, "enrollment_date"),
     intake_month: intakeMonthValue(formData),
+    student_number: formValue(formData, "student_number"),
     status: formValue(formData, "status") ?? "active",
     source: formValue(formData, "source") ?? "walk-in",
     registration_fee_paid: formData.get("registration_fee_paid") === "on",
@@ -75,6 +81,11 @@ export async function createStudentAction(
     .single();
 
   if (error || !student) {
+    if (error?.code === "23505" && error.message.includes("student_number")) {
+      return {
+        error: `Student number "${parsed.data.student_number}" is already in use. Please choose a different one.`,
+      };
+    }
     return { error: error?.message ?? "Could not create the student record" };
   }
 

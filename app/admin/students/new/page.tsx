@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { StudentForm } from "../student-form";
 import { createStudentAction } from "../actions";
+import { suggestNextStudentNumber } from "@/lib/students";
 
 export default async function NewStudentPage() {
   const supabase = await createClient();
@@ -11,6 +12,11 @@ export default async function NewStudentPage() {
     .select("*")
     .eq("is_active", true)
     .order("course_name");
+
+  const suggestedStudentNumber = await suggestNextStudentNumber(
+    supabase,
+    new Date().getFullYear().toString()
+  );
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -23,6 +29,7 @@ export default async function NewStudentPage() {
         <CardContent className="p-6 sm:p-8">
           <StudentForm
             courses={courses ?? []}
+            suggestedStudentNumber={suggestedStudentNumber}
             action={createStudentAction}
             submitLabel="Register student"
           />

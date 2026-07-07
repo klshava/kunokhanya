@@ -27,6 +27,7 @@ export const studentFormSchema = z.object({
   course_id: z.string().min(1, "Please select a course"),
   study_mode: z.enum(["full-time", "part-time"]),
   enrollment_date: z.string().min(1, "Enrollment date is required"),
+  student_number: z.string().trim().min(1, "Student number is required").optional(),
   intake_month: z
     .enum([
       "January", "February", "March", "April", "May", "June",
