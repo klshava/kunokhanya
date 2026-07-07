@@ -40,7 +40,7 @@ export function DetailTabs({
           <TabsTrigger value="fees">Fee statement</TabsTrigger>
           <TabsTrigger value="details">Student details</TabsTrigger>
         </TabsList>
-        {!hasPortalAccount && student.email && <InviteButton studentId={student.student_id} email={student.email} />}
+        {!hasPortalAccount && <InviteButton studentId={student.student_id} />}
         {hasPortalAccount && <Badge variant="success">Has portal account</Badge>}
       </div>
 

@@ -29,7 +29,7 @@ export function NewLoginBanner({
 
   return (
     <div className="mb-6 rounded-xl bg-success-soft px-4 py-3 text-sm text-success">
-      <p className="font-medium">Student registered successfully. Their portal login is ready:</p>
+      <p className="font-medium">Portal login is ready. Share these details with the student:</p>
       <p className="mt-1 text-ink">
         Login: <span className="font-semibold">{studentNumber}</span> &middot; Password:{" "}
         <span className="font-semibold">{password}</span>

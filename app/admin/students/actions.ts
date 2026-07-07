@@ -27,6 +27,68 @@ export async function suggestStudentNumberAction(year: string): Promise<string> 
   return suggestNextStudentNumber(supabase, year);
 }
 
+/**
+ * Creates a student's portal login using the same scheme everywhere in the
+ * app: login = student number, password = surname (zero-padded to 6). If the
+ * student has an email on file, their credentials are emailed to them. Used by
+ * both new-student registration and the "Send portal login" button, so the two
+ * paths always behave identically (no Supabase magic-link invites anywhere).
+ */
+async function provisionStudentPortalLogin(student: {
+  student_id: string;
+  student_number: string | null;
+  full_name: string;
+  email: string | null;
+}): Promise<{ created: boolean; emailed: boolean; error?: string }> {
+  if (!student.student_number) {
+    return { created: false, emailed: false, error: "This student has no student number yet." };
+  }
+
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const admin = createAdminClient();
+  const loginEmail = studentLoginEmail(student.student_number);
+  const password = deriveStudentPassword(student.full_name);
+
+  const { data: created, error: createUserError } = await admin.auth.admin.createUser({
+    email: loginEmail,
+    password,
+    email_confirm: true,
+  });
+
+  if (createUserError || !created.user) {
+    return { created: false, emailed: false, error: createUserError?.message ?? "Could not create the portal login." };
+  }
+
+  await admin.from("profiles").upsert({
+    id: created.user.id,
+    role: "student",
+    linked_student_id: student.student_id,
+    email: loginEmail,
+  });
+
+  let emailed = false;
+  if (student.email) {
+    try {
+      const { sendStudentCredentialsEmail } = await import("@/lib/email");
+      const host = (await headers()).get("host") ?? "localhost:3000";
+      const protocol = host.startsWith("localhost") ? "http" : "https";
+      await sendStudentCredentialsEmail({
+        to: student.email,
+        fullName: student.full_name,
+        loginEmail,
+        password,
+        loginUrl: `${protocol}://${host}/login`,
+      });
+      emailed = true;
+    } catch {
+      // Non-fatal -- the login still exists, the office can share the
+      // credentials shown on the page manually or via WhatsApp.
+    }
+  }
+
+  return { created: true, emailed };
+}
+
 export async function createStudentAction(
   _prevState: FormActionState,
   formData: FormData
@@ -91,49 +153,9 @@ export async function createStudentAction(
 
   // Auto-provision their portal login (same email/password scheme as the
   // historical bulk import), and email it to them if we have an address on
-  // file. Neither of these blocks the registration itself if they fail --
-  // the admin can still use the "Invite to portal" fallback from here.
-  let emailed = false;
-  if (student.student_number) {
-    const { createAdminClient } = await import("@/lib/supabase/admin");
-    const admin = createAdminClient();
-    const loginEmail = studentLoginEmail(student.student_number);
-    const password = deriveStudentPassword(student.full_name);
-
-    const { data: created, error: createUserError } = await admin.auth.admin.createUser({
-      email: loginEmail,
-      password,
-      email_confirm: true,
-    });
-
-    if (!createUserError && created.user) {
-      await admin.from("profiles").upsert({
-        id: created.user.id,
-        role: "student",
-        linked_student_id: student.student_id,
-        email: loginEmail,
-      });
-
-      if (student.email) {
-        try {
-          const { sendStudentCredentialsEmail } = await import("@/lib/email");
-          const host = (await headers()).get("host") ?? "localhost:3000";
-          const protocol = host.startsWith("localhost") ? "http" : "https";
-          await sendStudentCredentialsEmail({
-            to: student.email,
-            fullName: student.full_name,
-            loginEmail,
-            password,
-            loginUrl: `${protocol}://${host}/login`,
-          });
-          emailed = true;
-        } catch {
-          // Non-fatal -- the login still exists, office can share the
-          // credentials shown on the next page manually or via WhatsApp.
-        }
-      }
-    }
-  }
+  // file. This never blocks the registration itself if it fails -- the admin
+  // can still use the "Send portal login" button from the student page.
+  const { emailed } = await provisionStudentPortalLogin(student);
 
   revalidatePath("/admin/students");
   redirect(`/admin/students/${student.student_id}?created=1&emailed=${emailed ? 1 : 0}`);
@@ -272,7 +294,9 @@ export async function addPaymentAction(
   return { success: true };
 }
 
-export async function inviteStudentToPortalAction(studentId: string, email: string) {
+export async function inviteStudentToPortalAction(
+  studentId: string
+): Promise<{ success?: boolean; emailed?: boolean; error?: string }> {
   const { createAdminClient } = await import("@/lib/supabase/admin");
   const supabase = await createClient();
 
@@ -295,25 +319,29 @@ export async function inviteStudentToPortalAction(studentId: string, email: stri
   }
 
   const admin = createAdminClient();
+  const { data: student } = await admin
+    .from("students")
+    .select("student_id, student_number, full_name, email")
+    .eq("student_id", studentId)
+    .single();
 
-  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email);
-  if (inviteError || !invited.user) {
-    return { error: inviteError?.message ?? "Could not send the invite email" };
+  if (!student) {
+    return { error: "Student not found" };
   }
 
-  const { error: profileError } = await admin.from("profiles").upsert({
-    id: invited.user.id,
-    role: "student",
-    linked_student_id: studentId,
-    email,
-  });
-
-  if (profileError) {
-    return { error: profileError.message };
+  // Same credentials scheme as registration -- student number + surname
+  // password, emailed to the student if they have an address on file. This
+  // deliberately does NOT use Supabase's magic-link invite, so students always
+  // get the same login details the office can also read off the screen.
+  const result = await provisionStudentPortalLogin(student);
+  if (result.error) {
+    return { error: result.error };
   }
 
   revalidatePath(`/admin/students/${studentId}`);
-  return { success: true };
+  // Reuse the exact same post-registration banner (credentials + WhatsApp +
+  // email status) so the office sees the login details to share.
+  redirect(`/admin/students/${studentId}?created=1&emailed=${result.emailed ? 1 : 0}`);
 }
 
 export async function deleteStudentAction(studentId: string): Promise<FormActionState> {
