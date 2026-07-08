@@ -24,11 +24,13 @@ export default async function FeeStatementPrintPage({
     .eq("id", user.id)
     .single();
 
-  const isAdmin = profile?.role === "admin";
+  // Fee statements are financial info -- admin and registrar both have full
+  // financial visibility, facilitator does not (matches the RLS model).
+  const canSeeFinance = profile?.role === "admin" || profile?.role === "registrar";
   const isOwnRecord = profile?.linked_student_id === studentId;
 
-  if (!isAdmin && !isOwnRecord) {
-    redirect(isAdmin ? "/admin" : "/portal");
+  if (!canSeeFinance && !isOwnRecord) {
+    redirect(profile?.role === "student" ? "/portal" : "/admin");
   }
 
   const { data: student } = await supabase

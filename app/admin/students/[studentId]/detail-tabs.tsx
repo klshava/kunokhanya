@@ -12,13 +12,14 @@ import { AddPaymentDialog } from "./add-payment-dialog";
 import { InviteButton } from "./invite-button";
 import { DeleteStudentDialog } from "./delete-student-dialog";
 import { StudentDetailsReadonly } from "./student-details-readonly";
-import type { Course, Payment, Student } from "@/lib/database.types";
+import type { Course, Payment, Result, Student } from "@/lib/database.types";
 import { FileText, Printer } from "lucide-react";
 
 export function DetailTabs({
   student,
   courses,
   payments,
+  results,
   hasPortalAccount,
   canSeeFinance,
   canEdit,
@@ -26,6 +27,7 @@ export function DetailTabs({
   student: Student & { courses: Course | null };
   courses: Course[];
   payments: Payment[];
+  results: Result[];
   hasPortalAccount: boolean;
   canSeeFinance: boolean;
   canEdit: boolean;
@@ -44,6 +46,7 @@ export function DetailTabs({
         <TabsList>
           {canSeeFinance && <TabsTrigger value="fees">Fee statement</TabsTrigger>}
           <TabsTrigger value="details">Student details</TabsTrigger>
+          <TabsTrigger value="results">Results</TabsTrigger>
         </TabsList>
         {canEdit && !hasPortalAccount && <InviteButton studentId={student.student_id} />}
         {hasPortalAccount && <Badge variant="success">Has portal account</Badge>}
@@ -146,6 +149,56 @@ export function DetailTabs({
             </CardContent>
           </Card>
         )}
+      </TabsContent>
+
+      <TabsContent value="results">
+        {student.status === "completed" && (
+          <div className="mb-4 flex justify-end">
+            <Link href={`/certificate/${student.student_id}`} target="_blank">
+              <Button variant="outline" size="sm">
+                <Printer className="h-4 w-4" />
+                Print certificate
+              </Button>
+            </Link>
+          </div>
+        )}
+        <Card>
+          <CardContent className="p-6">
+            {results.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-10 text-center">
+                <FileText className="h-6 w-6 text-ink-faint" />
+                <p className="text-sm text-ink-soft">No results recorded yet.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-border-soft text-xs uppercase tracking-wide text-ink-faint">
+                      <th className="py-2 pr-4 font-medium">Module / unit standard</th>
+                      <th className="py-2 pr-4 font-medium">Outcome</th>
+                      <th className="py-2 pr-4 font-medium">Date assessed</th>
+                      <th className="py-2 font-medium">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map((r) => (
+                      <tr key={r.result_id} className="border-b border-border-soft last:border-0">
+                        <td className="py-2.5 pr-4 font-medium text-ink">{r.module_name}</td>
+                        <td className="py-2.5 pr-4">
+                          <Badge variant={r.outcome === "competent" ? "success" : "danger"}>
+                            {r.outcome === "competent" ? "Competent" : "Not Yet Competent"}
+                          </Badge>
+                        </td>
+                        <td className="py-2.5 pr-4 text-ink-soft">{formatDate(r.assessed_date)}</td>
+                        <td className="py-2.5 text-ink-soft">{r.notes ?? "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </TabsContent>
     </Tabs>
   );

@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { LauncherTile } from "@/components/admin/LauncherTile";
-import { User, Receipt } from "lucide-react";
+import { User, Receipt, GraduationCap, Award } from "lucide-react";
 
 export default async function PortalHomePage() {
   const supabase = await createClient();
@@ -16,7 +15,7 @@ export default async function PortalHomePage() {
     .single();
 
   const { data: student } = profile?.linked_student_id
-    ? await supabase.from("students").select("full_name").eq("student_id", profile.linked_student_id).single()
+    ? await supabase.from("students").select("full_name, status").eq("student_id", profile.linked_student_id).single()
     : { data: null };
 
   return (
@@ -43,6 +42,22 @@ export default async function PortalHomePage() {
           icon={Receipt}
           tint="amber"
         />
+        <LauncherTile
+          href="/portal/results"
+          label="Results"
+          description="View your assessment results"
+          icon={GraduationCap}
+          tint="emerald"
+        />
+        {student?.status === "completed" && profile?.linked_student_id && (
+          <LauncherTile
+            href={`/certificate/${profile.linked_student_id}`}
+            label="Certificate"
+            description="View and print your certificate"
+            icon={Award}
+            tint="violet"
+          />
+        )}
       </div>
     </div>
   );

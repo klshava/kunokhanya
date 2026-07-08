@@ -49,6 +49,14 @@ export default async function StudentDetailPage({
     ? { data: null }
     : await supabase.from("profiles").select("id, email").eq("linked_student_id", studentId).maybeSingle();
 
+  // results RLS grants full access to any staff role (admin/registrar/
+  // facilitator alike), unlike students/payments -- no branching needed.
+  const { data: results } = await supabase
+    .from("results")
+    .select("*")
+    .eq("student_id", studentId)
+    .order("assessed_date", { ascending: false });
+
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader title={student.full_name} description={student.student_number ?? undefined} backHref="/admin/students" backLabel="Student lookup" />
@@ -68,6 +76,7 @@ export default async function StudentDetailPage({
         student={student as any}
         courses={courses ?? []}
         payments={payments ?? []}
+        results={results ?? []}
         hasPortalAccount={!!profile}
         canSeeFinance={!isFacilitator}
         canEdit={canEdit}

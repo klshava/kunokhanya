@@ -11,6 +11,7 @@ export type StudentStatus = "active" | "completed" | "withdrawn";
 export type StudentSource = "walk-in" | "website" | "referral" | "wordpress";
 export type LeadStatus = "new" | "contacted" | "converted" | "rejected";
 export type Gender = "male" | "female" | "other" | "prefer_not_to_say";
+export type ResultOutcome = "competent" | "not_yet_competent";
 
 export interface Database {
   public: {
@@ -138,6 +139,12 @@ export interface Database {
           status: LeadStatus;
           source: string;
           converted_student_id: string | null;
+          id_number: string | null;
+          date_of_birth: string | null;
+          gender: Gender | null;
+          physical_address: string | null;
+          study_mode: StudyMode | null;
+          intake_month: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -186,6 +193,42 @@ export interface Database {
             isOneToOne: false;
             referencedRelation: "students";
             referencedColumns: ["student_id"];
+          }
+        ];
+      };
+      results: {
+        Row: {
+          result_id: string;
+          student_id: string;
+          course_id: string | null;
+          module_name: string;
+          outcome: ResultOutcome;
+          notes: string | null;
+          assessed_date: string;
+          marked_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["results"]["Row"]> & {
+          student_id: string;
+          module_name: string;
+          outcome: ResultOutcome;
+        };
+        Update: Partial<Database["public"]["Tables"]["results"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "results_student_id_fkey";
+            columns: ["student_id"];
+            isOneToOne: false;
+            referencedRelation: "students";
+            referencedColumns: ["student_id"];
+          },
+          {
+            foreignKeyName: "results_course_id_fkey";
+            columns: ["course_id"];
+            isOneToOne: false;
+            referencedRelation: "courses";
+            referencedColumns: ["course_id"];
           }
         ];
       };
@@ -274,5 +317,6 @@ export type Payment = Database["public"]["Tables"]["payments"]["Row"];
 export type WebsiteLead = Database["public"]["Tables"]["website_leads"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Attendance = Database["public"]["Tables"]["attendance"]["Row"];
+export type Result = Database["public"]["Tables"]["results"]["Row"];
 export type StudentBalance = Database["public"]["Views"]["student_balances"]["Row"];
 export type StudentDirectoryRow = Database["public"]["Views"]["students_directory"]["Row"];

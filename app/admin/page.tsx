@@ -8,6 +8,7 @@ import {
   Users,
   UserCog,
   CalendarCheck,
+  GraduationCap,
 } from "lucide-react";
 import { LauncherTile } from "@/components/admin/LauncherTile";
 import { getCurrentRole } from "@/lib/auth";
@@ -54,6 +55,13 @@ export default async function AdminDashboardPage() {
           description="Tick weekly attendance by course"
           icon={CalendarCheck}
           tint="emerald"
+        />
+        <LauncherTile
+          href="/admin/results"
+          label="Results"
+          description="Record Competent / Not Yet Competent outcomes"
+          icon={GraduationCap}
+          tint="violet"
         />
         {canSeeFinance && (
           <LauncherTile
