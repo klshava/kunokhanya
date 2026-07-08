@@ -40,9 +40,9 @@ async function provisionStudentPortalLogin(student: {
   student_number: string | null;
   full_name: string;
   email: string | null;
-}): Promise<{ created: boolean; emailed: boolean; error?: string }> {
+}): Promise<{ created: boolean; emailed: boolean; moodleCreated: boolean; error?: string }> {
   if (!student.student_number) {
-    return { created: false, emailed: false, error: "This student has no student number yet." };
+    return { created: false, emailed: false, moodleCreated: false, error: "This student has no student number yet." };
   }
 
   const { createAdminClient } = await import("@/lib/supabase/admin");
@@ -57,7 +57,7 @@ async function provisionStudentPortalLogin(student: {
   });
 
   if (createUserError || !created.user) {
-    return { created: false, emailed: false, error: createUserError?.message ?? "Could not create the portal login." };
+    return { created: false, emailed: false, moodleCreated: false, error: createUserError?.message ?? "Could not create the portal login." };
   }
 
   await admin.from("profiles").upsert({
@@ -67,10 +67,34 @@ async function provisionStudentPortalLogin(student: {
     email: loginEmail,
   });
 
+  // Best-effort: also create a matching Moodle account (same student number
+  // as username, same password) so one set of credentials works on both
+  // systems. Runs before the email below so the message can mention Moodle
+  // only if it actually succeeded. Never blocks registration -- if Moodle is
+  // unreachable or unconfigured, the Student Central login still exists.
+  let moodleCreated = false;
+  if (process.env.MOODLE_BASE_URL && process.env.MOODLE_API_TOKEN) {
+    try {
+      const { createMoodleUser } = await import("@/lib/moodle");
+      const { moodleUserId } = await createMoodleUser({
+        studentNumber: student.student_number,
+        password,
+        fullName: student.full_name,
+        email: loginEmail,
+      });
+      await admin.from("students").update({ moodle_user_id: moodleUserId }).eq("student_id", student.student_id);
+      moodleCreated = true;
+    } catch {
+      // Non-fatal -- most likely cause is a duplicate username/email if this
+      // student already has a Moodle account, or Moodle being unreachable.
+    }
+  }
+
   let emailed = false;
   if (student.email) {
     try {
       const { sendStudentCredentialsEmail } = await import("@/lib/email");
+      const { moodleUsername } = await import("@/lib/moodle");
       const host = (await headers()).get("host") ?? "localhost:3000";
       const protocol = host.startsWith("localhost") ? "http" : "https";
       await sendStudentCredentialsEmail({
@@ -79,6 +103,8 @@ async function provisionStudentPortalLogin(student: {
         loginEmail,
         password,
         loginUrl: `${protocol}://${host}/login`,
+        moodleUsername: moodleCreated ? moodleUsername(student.student_number) : undefined,
+        moodleLoginUrl: moodleCreated && process.env.MOODLE_BASE_URL ? `${process.env.MOODLE_BASE_URL}/login/index.php` : undefined,
       });
       emailed = true;
     } catch {
@@ -87,26 +113,7 @@ async function provisionStudentPortalLogin(student: {
     }
   }
 
-  // Best-effort: also create a matching Moodle account (same student number
-  // as username, same password) so one set of credentials works on both
-  // systems. Never blocks registration -- if Moodle is unreachable or
-  // unconfigured, the Student Central login still exists either way.
-  if (process.env.MOODLE_BASE_URL && process.env.MOODLE_API_TOKEN) {
-    try {
-      const { createMoodleUser } = await import("@/lib/moodle");
-      await createMoodleUser({
-        studentNumber: student.student_number,
-        password,
-        fullName: student.full_name,
-        email: loginEmail,
-      });
-    } catch {
-      // Non-fatal -- most likely cause is a duplicate username/email if this
-      // student already has a Moodle account, or Moodle being unreachable.
-    }
-  }
-
-  return { created: true, emailed };
+  return { created: true, emailed, moodleCreated };
 }
 
 export async function createStudentAction(
@@ -178,10 +185,12 @@ export async function createStudentAction(
   // historical bulk import), and email it to them if we have an address on
   // file. This never blocks the registration itself if it fails -- the admin
   // can still use the "Send portal login" button from the student page.
-  const { emailed } = await provisionStudentPortalLogin(student);
+  const { emailed, moodleCreated } = await provisionStudentPortalLogin(student);
 
   revalidatePath("/admin/students");
-  redirect(`/admin/students/${student.student_id}?created=1&emailed=${emailed ? 1 : 0}`);
+  redirect(
+    `/admin/students/${student.student_id}?created=1&emailed=${emailed ? 1 : 0}&moodle=${moodleCreated ? 1 : 0}`
+  );
 }
 
 export async function updateStudentAction(
@@ -382,7 +391,9 @@ export async function inviteStudentToPortalAction(
   revalidatePath(`/admin/students/${studentId}`);
   // Reuse the exact same post-registration banner (credentials + WhatsApp +
   // email status) so the office sees the login details to share.
-  redirect(`/admin/students/${studentId}?created=1&emailed=${result.emailed ? 1 : 0}`);
+  redirect(
+    `/admin/students/${studentId}?created=1&emailed=${result.emailed ? 1 : 0}&moodle=${result.moodleCreated ? 1 : 0}`
+  );
 }
 
 export async function deleteStudentAction(studentId: string): Promise<FormActionState> {
@@ -408,6 +419,25 @@ export async function deleteStudentAction(studentId: string): Promise<FormAction
     const { error: authError } = await admin.auth.admin.deleteUser(linkedProfile.id);
     if (authError) {
       return { error: `Could not delete the portal login: ${authError.message}` };
+    }
+  }
+
+  // Best-effort: also delete the matching Moodle account, if one was
+  // created. Never blocks deletion -- if Moodle is unreachable, the Student
+  // Central record is still removed either way.
+  const { data: moodleStudent } = await admin
+    .from("students")
+    .select("moodle_user_id")
+    .eq("student_id", studentId)
+    .maybeSingle();
+
+  if (moodleStudent?.moodle_user_id) {
+    try {
+      const { deleteMoodleUser } = await import("@/lib/moodle");
+      await deleteMoodleUser(moodleStudent.moodle_user_id);
+    } catch {
+      // Non-fatal -- the Moodle account may already be gone, or Moodle may
+      // be unreachable. The office can delete it manually if needed.
     }
   }
 

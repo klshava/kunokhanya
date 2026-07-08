@@ -57,6 +57,7 @@ export interface Database {
           total_fee_override: number | null;
           registration_fee_override: number | null;
           intake_month: string | null;
+          moodle_user_id: number | null;
           created_at: string;
           updated_at: string;
         };

@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { DetailTabs } from "./detail-tabs";
 import { NewLoginBanner } from "./new-login-banner";
 import { studentLoginEmail, deriveStudentPassword } from "@/lib/students";
+import { moodleUsername } from "@/lib/moodle";
 
 export default async function StudentDetailPage({
   params,
@@ -21,6 +22,7 @@ export default async function StudentDetailPage({
   const canEdit = !isFacilitator;
   const justCreated = sp.created === "1" && canEdit;
   const emailed = sp.emailed === "1";
+  const moodleOk = sp.moodle === "1" && !!process.env.MOODLE_BASE_URL;
 
   const supabase = await createClient();
 
@@ -69,6 +71,8 @@ export default async function StudentDetailPage({
           contactNumber={student.contact_number}
           emailAddress={student.email}
           emailed={emailed}
+          moodleUsername={moodleOk ? moodleUsername(student.student_number) : null}
+          moodleLoginUrl={moodleOk ? `${process.env.MOODLE_BASE_URL}/login/index.php` : null}
         />
       )}
 
