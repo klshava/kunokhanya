@@ -87,6 +87,25 @@ async function provisionStudentPortalLogin(student: {
     }
   }
 
+  // Best-effort: also create a matching Moodle account (same student number
+  // as username, same password) so one set of credentials works on both
+  // systems. Never blocks registration -- if Moodle is unreachable or
+  // unconfigured, the Student Central login still exists either way.
+  if (process.env.MOODLE_BASE_URL && process.env.MOODLE_API_TOKEN) {
+    try {
+      const { createMoodleUser } = await import("@/lib/moodle");
+      await createMoodleUser({
+        studentNumber: student.student_number,
+        password,
+        fullName: student.full_name,
+        email: loginEmail,
+      });
+    } catch {
+      // Non-fatal -- most likely cause is a duplicate username/email if this
+      // student already has a Moodle account, or Moodle being unreachable.
+    }
+  }
+
   return { created: true, emailed };
 }
 
