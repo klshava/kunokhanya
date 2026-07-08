@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentRole } from "@/lib/auth";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -235,7 +236,16 @@ export default async function ReportsPage({
 
   return (
     <div>
-      <PageHeader title="Reports" description="Enrollment, fees, and year-over-year performance." backHref="/admin" />
+      <PageHeader
+        title="Reports"
+        description="Enrollment, fees, and year-over-year performance."
+        backHref="/admin"
+        actions={
+          <Link href="/admin/reports/overdue-fees">
+            <Button variant="outline">Overdue Fees</Button>
+          </Link>
+        }
+      />
 
       <Card className="mb-6 p-4 sm:p-5">
         <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">

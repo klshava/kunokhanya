@@ -9,6 +9,7 @@ import {
   UserCog,
   CalendarCheck,
   GraduationCap,
+  AlertCircle,
 } from "lucide-react";
 import { LauncherTile } from "@/components/admin/LauncherTile";
 import { getCurrentRole } from "@/lib/auth";
@@ -70,6 +71,15 @@ export default async function AdminDashboardPage() {
             description="View balances and payments"
             icon={Receipt}
             tint="amber"
+          />
+        )}
+        {canSeeFinance && (
+          <LauncherTile
+            href="/admin/reports/overdue-fees"
+            label="Overdue Fees"
+            description="Students with outstanding balances"
+            icon={AlertCircle}
+            tint="rose"
           />
         )}
         {canManageCourses && (
