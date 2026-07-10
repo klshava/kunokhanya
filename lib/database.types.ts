@@ -93,6 +93,7 @@ export interface Database {
           gender: Gender | null;
           home_language: string | null;
           is_active: boolean;
+          moodle_user_id: number | null;
           created_at: string;
           updated_at: string;
         };

@@ -27,6 +27,8 @@ export function CreateUserForm({ unlinkedStaff }: { unlinkedStaff: Staff[] }) {
         password={state.password}
         emailed={!!state.emailed}
         phoneNumber={state.phoneNumber}
+        moodleUsername={state.moodleUsername}
+        moodleLoginUrl={state.moodleLoginUrl}
       />
     );
   }

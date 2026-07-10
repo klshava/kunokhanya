@@ -101,6 +101,8 @@ export async function sendStaffCredentialsEmail({
   password,
   role,
   loginUrl,
+  moodleUsername,
+  moodleLoginUrl,
 }: {
   to: string;
   fullName: string;
@@ -108,8 +110,12 @@ export async function sendStaffCredentialsEmail({
   password: string;
   role: string;
   loginUrl: string;
+  /** Only set when a matching Moodle account was actually created -- omit to send the Student Central-only email. */
+  moodleUsername?: string;
+  moodleLoginUrl?: string;
 }) {
   const roleLabel = ROLE_LABELS[role] ?? role;
+  const hasMoodle = !!(moodleUsername && moodleLoginUrl);
   return resend.emails.send({
     from: FROM,
     to,
@@ -118,8 +124,10 @@ export async function sendStaffCredentialsEmail({
       <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         <h2 style="color: #0F766E;">Welcome to Kunokhanya Training Academy</h2>
         <p>Hi ${fullName},</p>
-        <p>You've been granted <strong>${roleLabel}</strong> access to the Kunokhanya admin system. Here are your login details:</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+        <p>You've been granted <strong>${roleLabel}</strong> access to the Kunokhanya admin system. The password below is the same${hasMoodle ? " for both logins" : ""}.</p>
+
+        <h3 style="color: #0F766E; margin-bottom: 4px;">Student Central (admin system)</h3>
+        <table style="width: 100%; border-collapse: collapse; margin: 8px 0 16px;">
           <tr>
             <td style="padding: 8px 0; color: #6E6E73;">Login</td>
             <td style="padding: 8px 0; font-weight: 600;">${loginEmail}</td>
@@ -134,6 +142,30 @@ export async function sendStaffCredentialsEmail({
             Go to the admin login
           </a>
         </p>
+
+        ${
+          hasMoodle
+            ? `
+        <h3 style="color: #0F766E; margin: 24px 0 4px;">Moodle (course material)</h3>
+        <table style="width: 100%; border-collapse: collapse; margin: 8px 0 16px;">
+          <tr>
+            <td style="padding: 8px 0; color: #6E6E73;">Login</td>
+            <td style="padding: 8px 0; font-weight: 600;">${moodleUsername}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #6E6E73;">Password</td>
+            <td style="padding: 8px 0; font-weight: 600;">${password}</td>
+          </tr>
+        </table>
+        <p>
+          <a href="${moodleLoginUrl}" style="display: inline-block; background: #0F766E; color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 10px; font-weight: 600;">
+            Go to Moodle
+          </a>
+        </p>
+        `
+            : ""
+        }
+
         <p style="color: #6E6E73; font-size: 13px; margin-top: 24px;">
           If you have any trouble logging in, contact the academy office.
         </p>
